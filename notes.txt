@@ -1,0 +1,7 @@
+naming scheme:
+- structs: struct thing {};
+- 'constructors': struct thing thing() {}
+- 'member functions': thing_fn(struct thing* thing) {}
+- free functions: fn() {}
+
+goal: you "understand" all the math
