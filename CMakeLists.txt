@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.22)
 project(game C)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
@@ -17,4 +17,5 @@ add_executable(game main.c src/lib/glad/glad.c src/lib/glad/glad.h src/lib/glad/
         src/gl.c)
 
 find_package(cglm CONFIG REQUIRED)
-target_link_libraries(game PRIVATE cglm::cglm glfw)
+find_package(assimp CONFIG REQUIRED)
+target_link_libraries(game PRIVATE cglm::cglm glfw assimp::assimp)

@@ -191,7 +191,7 @@ typedef struct {
   int mRecursive;             /* TRUE if the mutex is recursive */
 } mtx_t;
 #else
-typedef pthread_mutex_t mtx_t;
+typedef pthread_mustruct tex mtx_t;
 #endif
 
 /** Create a mutex object.

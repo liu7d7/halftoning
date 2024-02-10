@@ -1192,7 +1192,7 @@ NK_API void nk_input_end(struct nk_context*);
 /// struct nk_convert_config cfg = {};
 /// static const struct nk_draw_vertex_layout_element vertex_layout[] = {
 ///     {NK_VERTEX_POSITION, NK_FORMAT_FLOAT, NK_OFFSETOF(struct your_vertex, pos)},
-///     {NK_VERTEX_TEXCOORD, NK_FORMAT_FLOAT, NK_OFFSETOF(struct your_vertex, uv)},
+///     {NK_VERstruct texEXCOORD, NK_FORMAT_FLOAT, NK_OFFSETOF(struct your_vertex, uv)},
 ///     {NK_VERTEX_COLOR, NK_FORMAT_R8G8B8A8, NK_OFFSETOF(struct your_vertex, col)},
 ///     {NK_VERTEX_LAYOUT_END}
 /// };
@@ -4730,7 +4730,7 @@ NK_STROKE_CLOSED = nk_true
 enum nk_draw_vertex_layout_attribute {
 NK_VERTEX_POSITION,
 NK_VERTEX_COLOR,
-NK_VERTEX_TEXCOORD,
+NK_VERstruct texEXCOORD,
 NK_VERTEX_ATTRIBUTE_COUNT
 };
 
@@ -9831,7 +9831,7 @@ switch (elem_iter->attribute) {
 case NK_VERTEX_ATTRIBUTE_COUNT:
 default: NK_ASSERT(0 && "wrong element attribute"); break;
 case NK_VERTEX_POSITION: nk_draw_vertex_element(address, &pos.x, 2, elem_iter->format); break;
-case NK_VERTEX_TEXCOORD: nk_draw_vertex_element(address, &uv.x, 2, elem_iter->format); break;
+case NK_VERstruct texEXCOORD: nk_draw_vertex_element(address, &uv.x, 2, elem_iter->format); break;
 case NK_VERTEX_COLOR: nk_draw_vertex_color(address, &color.r, elem_iter->format); break;
 }
 elem_iter++;

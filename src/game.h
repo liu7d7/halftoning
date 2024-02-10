@@ -6,24 +6,26 @@
 #include "err.h"
 #include "gl.h"
 
-typedef struct game_t {
+struct game {
   vec2 win_size;
   vec2 mouse_pos;
-  vao_t vao;
-  shader_t shader;
-  cam_t cam;
-  bool is_mouse_captured;
+  struct vao post;
+  struct shader to_cmyk, dots, blur, blit;
+  struct cam cam;
+  struct fbo cmyk, cmyk2, main;
+  struct mod cube;
+  bool is_mouse_captured, is_rendering_halftone;
 
   // owning!
   GLFWwindow* win;
-} game_t;
+};
 
-game_t game(int width, int height, char const* name);
+struct game game(int width, int height, char const* name);
 
-void game_run(game_t* g);
-void game_cleanup(game_t* g);
-void game_setup_user_ptr(game_t* g);
-bool game_is_key_down(game_t* g, int key);
+void game_run(struct game* g);
+void game_cleanup(struct game* g);
+void game_setup_user_ptr(struct game* g);
+bool game_is_key_down(struct game* g, int key);
 
 void framebuffer_size_callback(GLFWwindow* win, int width, int height);
 void cursor_pos_callback(GLFWwindow* win, double xpos, double ypos);

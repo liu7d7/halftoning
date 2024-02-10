@@ -804,7 +804,7 @@ typedef void (* GLADpostcallback)(void* ret, const char* name,
 #define GL_MAX_VARYING_FLOATS 0x8B4B
 #define GL_MAX_VERTEX_ATTRIBS 0x8869
 #define GL_MAX_VERTEX_OUTPUT_COMPONENTS 0x9122
-#define GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS 0x8B4C
+#define GL_MAX_VERstruct texEXTURE_IMAGE_UNITS 0x8B4C
 #define GL_MAX_VERTEX_UNIFORM_BLOCKS 0x8A2B
 #define GL_MAX_VERTEX_UNIFORM_COMPONENTS 0x8B4A
 #define GL_MAX_VIEWPORT_DIMS 0x0D3A
@@ -1122,7 +1122,7 @@ typedef void (* GLADpostcallback)(void* ret, const char* name,
 #define GL_SET 0x150F
 #define GL_SHADER 0x82E1
 #define GL_SHADER_SOURCE_LENGTH 0x8B88
-#define GL_SHADER_TYPE 0x8B4F
+#define GL_struct shaderYPE 0x8B4F
 #define GL_SHADE_MODEL 0x0B54
 #define GL_SHADING_LANGUAGE_VERSION 0x8B8C
 #define GL_SHININESS 0x1601

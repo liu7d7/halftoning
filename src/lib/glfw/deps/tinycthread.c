@@ -112,7 +112,7 @@ int mtx_trylock(mtx_t* mtx) {
   }
   return ret;
 #else
-  return (pthread_mutex_trylock(mtx) == 0) ? thrd_success : thrd_busy;
+  return (pthread_mustruct texrylock(mtx) == 0) ? thrd_success : thrd_busy;
 #endif
 }
 

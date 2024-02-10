@@ -39,10 +39,3 @@ static void throw_c(char const* error) {
   fprintf(stderr, "%s\n", error);
   exit(-1);
 }
-
-[[noreturn]]
-
-static void throw_nc(char* error) {
-  fprintf(stderr, "%s\n", error);
-  exit(-1);
-}
