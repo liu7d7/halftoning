@@ -25,7 +25,7 @@ byte* internal_dyn_arr_base_ptr(byte* memory);
 void internal_dyn_arr_add(byte** memory, byte* item, size_t size);
 
 #define dyn_arr_add(this, ...) internal_dyn_arr_add((byte**) &(this), (byte*) (__VA_ARGS__), sizeof(*(__VA_ARGS__)))
-#define dyn_arr_add_unsafe(this, ...) internal_dyn_arr_add((byte**) &(this), (byte*) (__VA_ARGS__), internal_dyn_arr_get_metadata((byte*) this)->elem_size)
+#define dyn_arr_add_unchecked(this, ...) internal_dyn_arr_add((byte**) &(this), (byte*) (__VA_ARGS__), internal_dyn_arr_get_metadata((byte*) this)->elem_size)
 #define dyn_arr_add_i(this, type, ...) internal_dyn_arr_add((byte**) &(this), (byte*) &(type) {__VA_ARGS__}, sizeof(type))
 
 #define dyn_arr_len(this) internal_dyn_arr_get_metadata((byte*) this)->count

@@ -14,7 +14,6 @@ struct game {
   struct shader to_cmyk, dots, blur, blit;
   struct cam cam;
   struct fbo cmyk, cmyk2, main;
-  struct mod cube;
   struct world world;
   bool is_mouse_captured, is_rendering_halftone;
 

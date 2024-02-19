@@ -2,8 +2,8 @@
 
 struct entry* internal_map_new_entries(size_t size) {
   static const struct entry invalid_entry = {
-    .key = NULL,
-    .val = NULL,
+    .key_idx = SIZE_MAX,
+    .val_idx = SIZE_MAX,
     .next = NULL,
   };
 
@@ -16,11 +16,11 @@ struct entry* internal_map_new_entries(size_t size) {
 }
 
 bool internal_map_entry_is_invalid(struct entry* entry) {
-  return !entry->key;
+  return entry->key_idx == SIZE_MAX;
 }
 
 void internal_map_insert_entry(struct map* d, struct entry* e) {
-  size_t insert_index = d->hash(e->key) % d->c_entries;
+  size_t insert_index = d->hash(dyn_arr_at(d->keys, e->key_idx)) % d->c_entries;
 
   if (internal_map_entry_is_invalid(&d->entries[insert_index])) {
     d->entries[insert_index] = *e;
@@ -42,6 +42,8 @@ void internal_map_insert_entry(struct map* d, struct entry* e) {
 void map_set(struct map* d, void* key, void* val) {
   if (d->n_entries > d->c_entries * (long double)d->load_factor) {
     struct map new_d = {
+      .keys = d->keys,
+      .vals = d->vals,
       .entries = internal_map_new_entries(d->c_entries * 2),
       .c_entries = d->c_entries * 2,
       .n_entries = 0,
@@ -81,12 +83,12 @@ void map_set(struct map* d, void* key, void* val) {
     return;
   }
 
-  void* key_ptr = memcpy(malloc(d->key_size), key, d->key_size);
-  void* val_ptr = memcpy(malloc(d->val_size), val, d->val_size);
+  dyn_arr_add_unchecked(d->keys, key);
+  dyn_arr_add_unchecked(d->vals, val);
 
   struct entry e = {
-    .key = key_ptr,
-    .val = val_ptr,
+    .key_idx = dyn_arr_count(d->keys) - 1,
+    .val_idx = dyn_arr_count(d->vals) - 1,
     .next = NULL
   };
 
@@ -100,7 +102,7 @@ void* map_at(struct map* d, void* key) {
   }
 
   struct entry* end = &d->entries[bucket_index];
-  while (end && !d->eq(key, end->key)) {
+  while (end && !d->eq(key, dyn_arr_at(d->keys, end->key_idx))) {
     end = end->next;
   }
 
@@ -108,7 +110,7 @@ void* map_at(struct map* d, void* key) {
     return NULL;
   }
 
-  return end->val;
+  return dyn_arr_at(d->vals, end->val_idx);
 }
 
 bool map_has(struct map* d, void* key) {
@@ -119,6 +121,8 @@ struct map
 map(size_t initial_size, size_t key_size, size_t val_size, float load_factor,
     bool (* eq)(void*, void*), size_t (* hash)(void*)) {
   return (struct map) {
+    .keys = internal_dyn_arr_new(initial_size, key_size),
+    .vals = internal_dyn_arr_new(initial_size, val_size),
     .entries = internal_map_new_entries(initial_size),
     .c_entries = initial_size,
     .n_entries = 0,

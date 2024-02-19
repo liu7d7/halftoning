@@ -5,17 +5,17 @@ float chunk_get_y(const float* world_pos) {
   if (!noise) {
     fnl_state s = fnlCreateState();
     noise = memcpy(malloc(sizeof(s)), &s, sizeof(s));
-    noise->noise_type = FNL_NOISE_OPENSIMPLEX2;
+    noise->noise_type = FNL_NOISE_OPENSIMPLEX2S;
   }
 
-  return fnlGetNoise2D(noise, world_pos[0] * 2, world_pos[2] * 2) * 15;
+  return fnlGetNoise2D(noise, world_pos[0] * 6, world_pos[2] * 6) * 15.f + fnlGetNoise2D(noise, world_pos[0] * 0.5f, world_pos[2] * 0.5f) * 3;
 }
 
 void chunk_get_pos(const int* pos, int off_x, int off_z, float* out) {
   vec3 base = {
-    (float)(pos[0] * chunk_size + off_x * chunk_ratio),
+    (float)pos[0] * (float)chunk_size + (float)off_x * chunk_ratio,
     0,
-    (float)(pos[1] * chunk_size + off_z * chunk_ratio)
+    (float)pos[1] * (float)chunk_size + (float)off_z * chunk_ratio
   };
 
   base[1] = chunk_get_y(base);
@@ -103,15 +103,23 @@ void world_draw(struct world* w, struct cam* c) {
   (void)mod_get_shader(c);
 
   const int render_distance = 6;
+  bool first_gen = true;
   for (int i = -render_distance; i <= render_distance; i++) {
     for (int j = -render_distance; j <= render_distance; j++) {
+      if (sqrt(i * i + j * j) > render_distance + 1) {
+        continue;
+      }
+
       ivec2 chunk_pos = {cam_to_chunk[0] + i, cam_to_chunk[1] + j};
-      if (!map_has(&w->chunks, &chunk_pos)) {
+      if (!map_has(&w->chunks, &chunk_pos) && first_gen) {
         struct chunk gen = chunk(chunk_pos);
         map_set(&w->chunks, &chunk_pos, &gen);
+        first_gen = false;
       }
 
       struct chunk* ch = map_at(&w->chunks, &chunk_pos);
+      if (!ch) continue;
+
       vao_bind(&ch->vao);
       gl_draw_arrays(GL_TRIANGLES, 0, ch->n_inds);
     }

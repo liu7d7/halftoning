@@ -6,12 +6,14 @@
 #include "err.h"
 
 struct entry {
-  void* key;
-  void* val;
+  size_t key_idx;
+  size_t val_idx;
   struct entry* next;
 };
 
 struct map {
+  void* keys;
+  void* vals;
   struct entry* entries;
   size_t c_entries, n_entries, key_size, val_size;
   float load_factor;

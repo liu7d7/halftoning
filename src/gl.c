@@ -69,7 +69,7 @@ void cam_look(struct cam* c, vec4* res) {
 }
 
 void cam_proj(struct cam* c, vec4* res) {
-  glm_perspective(to_rad(c->zoom), c->aspect, 0.01f, 3000.f,
+  glm_perspective(to_rad(c->zoom), c->aspect, 0.01f, 256.f,
                   res);
 }
 
@@ -238,44 +238,58 @@ struct tex_spec tex_spec_invalid() {
 struct tex_spec tex_spec_rgba8(int width, int height, int filter) {
   return (struct tex_spec){
     .width = width, .height = height, .min_filter = filter, .mag_filter = filter,
-    .internal_format = GL_RGBA8, .format = GL_RGBA, .pixels = NULL
+    .internal_format = GL_RGBA8, .format = GL_RGBA, .pixels = NULL, .multisample = false
   };
 }
 
 struct tex_spec tex_spec_rgba16(int width, int height, int filter) {
   return (struct tex_spec){
     .width = width, .height = height, .min_filter = filter, .mag_filter = filter,
-    .internal_format = GL_RGBA16F, .format = GL_RGBA, .pixels = NULL
+    .internal_format = GL_RGBA16F, .format = GL_RGBA, .pixels = NULL, .multisample = false
+  };
+}
+
+struct tex_spec tex_spec_rgba16_msaa(int width, int height, int filter) {
+  return (struct tex_spec){
+    .width = width, .height = height, .min_filter = filter, .mag_filter = filter,
+    .internal_format = GL_RGBA16F, .format = GL_RGBA, .pixels = NULL, .multisample = true
   };
 }
 
 struct tex_spec tex_spec_r16(int width, int height, int filter) {
   return (struct tex_spec){
     .width = width, .height = height, .min_filter = filter, .mag_filter = filter,
-    .internal_format = GL_R16F, .format = GL_RED, .pixels = NULL
+    .internal_format = GL_R16F, .format = GL_RED, .pixels = NULL, .multisample = false
   };
 }
 
 struct tex_spec tex_spec_depth24(int width, int height, int filter) {
   return (struct tex_spec){
     .width = width, .height = height, .min_filter = filter, .mag_filter = filter,
-    .internal_format = GL_DEPTH_COMPONENT32, .format = GL_DEPTH_COMPONENT, .pixels = NULL
+    .internal_format = GL_DEPTH_COMPONENT32, .format = GL_DEPTH_COMPONENT, .pixels = NULL, .multisample = false
   };
 }
 
 struct tex tex(struct tex_spec spec) {
   struct tex t = {.id = 0, .spec = spec};
-  gl_create_textures(GL_TEXTURE_2D, 1, &t.id);
-  gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-  gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-  gl_texture_parameteri(t.id, GL_TEXTURE_MIN_FILTER, spec.min_filter);
-  gl_texture_parameteri(t.id, GL_TEXTURE_MAG_FILTER, spec.mag_filter);
 
-  gl_texture_storage_2d(t.id, 1, spec.internal_format, spec.width, spec.height);
+  if (spec.multisample) {
+    gl_create_textures(GL_TEXTURE_2D_MULTISAMPLE, 1, &t.id);
+    gl_texture_storage_2d_multisample(t.id, 4, spec.internal_format, spec.width, spec.height, true);
+  } else {
+    gl_create_textures(GL_TEXTURE_2D, 1, &t.id);
+    gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+    gl_texture_parameteri(t.id, GL_TEXTURE_MIN_FILTER, spec.min_filter);
+    gl_texture_parameteri(t.id, GL_TEXTURE_MAG_FILTER, spec.mag_filter);
+    gl_texture_storage_2d(t.id, 1, spec.internal_format, spec.width,
+                          spec.height);
 
-  if (spec.pixels) {
-    gl_texture_sub_image_2d(t.id, 0, 0, 0, spec.width, spec.height, spec.format,
-                            GL_UNSIGNED_BYTE, spec.pixels);
+    if (spec.pixels) {
+      gl_texture_sub_image_2d(t.id, 0, 0, 0, spec.width, spec.height,
+                              spec.format,
+                              GL_UNSIGNED_BYTE, spec.pixels);
+    }
   }
 
   return t;

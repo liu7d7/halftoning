@@ -5,10 +5,10 @@
 #include "dyn_arr.h"
 #include "map.h"
 
-static const int chunk_size = 32;
-static const int chunk_qty = 16;
+static const int chunk_size = 64;
+static const int chunk_qty = 64;
 static const int chunk_len = chunk_qty + 1;
-static const int chunk_ratio = chunk_size / chunk_qty;
+static const float chunk_ratio = (float)chunk_size / (float)chunk_qty;
 
 struct chunk {
   struct vao vao;

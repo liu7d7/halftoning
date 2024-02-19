@@ -26,7 +26,7 @@ struct game game(int width, int height, const char* name) {
 
   glfw_make_context_current(win);
   glfw_set_framebuffer_size_callback(win, framebuffer_size_callback);
-//  glfw_set_cursor_pos_callback(win, cursor_pos_callback);
+  glfw_set_cursor_pos_callback(win, cursor_pos_callback);
   glfw_set_key_callback(win, key_callback);
   glfw_set_mouse_button_callback(win, mouse_button_callback);
   glfw_swap_interval(1);
@@ -54,7 +54,7 @@ struct game game(int width, int height, const char* name) {
     .win_size = {(float)width, (float)height},
     .is_mouse_captured = true,
     .post = vao(&post_vbo, NULL, 1, (struct attrib[]){attr_2f}),
-    .cam = cam((vec3){0.f, 50.f, 0.f}, (vec3){0.f, 1.f, 0.f}, 45.f, -30.f, (float)width / (float)height),
+    .cam = cam((vec3){0.f, 50.f, 0.f}, (vec3){0.f, 1.f, 0.f}, 225.f, -30.f, (float)width / (float)height),
     .main = fbo(2,
                 (struct fbo_spec[]){
                   {GL_COLOR_ATTACHMENT0, tex_spec_rgba8(width, height,
@@ -86,7 +86,6 @@ struct game game(int width, int height, const char* name) {
                      {GL_VERTEX_SHADER,   "res/post.vsh"},
                      {GL_FRAGMENT_SHADER, "res/blur.fsh"}
                    }),
-    .cube = mod("res/hana.obj"),
     .world = world()
   };
 }
@@ -139,7 +138,7 @@ void update_camera(struct game* g) {
 void game_run(struct game* g) {
   game_setup_user_ptr(g);
   gl_depth_func(GL_LESS);
-  gl_clear_color(1.f, 1.f, 1.f, 1.f);
+  gl_clear_color(0.3f, 1.f, 1.f, 1.f);
 
   gl_debug_message_callback(gl_error_callback, NULL);
   gl_enable(GL_DEBUG_OUTPUT);
@@ -156,7 +155,6 @@ void game_run(struct game* g) {
     update_camera(g);
 
     // draw the thing
-    mod_draw(&g->cube, &g->cam);
     world_draw(&g->world, &g->cam);
 
     if (g->is_rendering_halftone) {
@@ -199,7 +197,7 @@ void game_run(struct game* g) {
                   (struct halftone){
                     .cmyk = fbo_tex_at(&g->cmyk2, GL_COLOR_ATTACHMENT0),
                     .unit = 0,
-                    .dots_per_line = 384,
+                    .dots_per_line = 160,
                     .scr_size = VEC2_COPY_INIT(g->win_size)
                   });
 

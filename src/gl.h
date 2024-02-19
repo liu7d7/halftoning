@@ -98,6 +98,7 @@ int attrib_get_size_in_bytes(struct attrib* attr);
 struct tex_spec {
   int width, height, min_filter, mag_filter;
   uint internal_format, format;
+  bool multisample;
 
   // owning!
   // can be null!
@@ -109,6 +110,8 @@ struct tex_spec tex_spec_invalid();
 struct tex_spec tex_spec_rgba8(int width, int height, int filter);
 
 struct tex_spec tex_spec_rgba16(int width, int height, int filter);
+
+struct tex_spec tex_spec_rgba16_msaa(int width, int height, int filter);
 
 struct tex_spec tex_spec_r16(int width, int height, int filter);
 
