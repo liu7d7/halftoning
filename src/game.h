@@ -5,6 +5,7 @@
 #include "lib/glfw/include/GLFW/glfw3.h"
 #include "err.h"
 #include "gl.h"
+#include "world.h"
 
 struct game {
   vec2 win_size;
@@ -14,6 +15,7 @@ struct game {
   struct cam cam;
   struct fbo cmyk, cmyk2, main;
   struct mod cube;
+  struct world world;
   bool is_mouse_captured, is_rendering_halftone;
 
   // owning!

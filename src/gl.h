@@ -14,19 +14,19 @@ struct game;
 
 struct cam {
   vec3 pos, front, up, right, world_up;
-  float target_yaw, yaw, target_pitch, pitch, speed, vel, sens, zoom;
+  float target_yaw, yaw, target_pitch, pitch, speed, vel, sens, zoom, aspect;
 
   vec2 last_mouse_pos;
   bool has_last;
 };
 
-struct cam cam(vec3 pos, vec3 world_up, float yaw, float pitch);
+struct cam cam(vec3 pos, vec3 world_up, float yaw, float pitch, float aspect);
 
 void cam_update(struct cam* c, struct game* g);
 
 void cam_look(struct cam* c, mat4 res);
 
-void cam_proj(struct cam* c, float const* win_size, mat4 res);
+void cam_proj(struct cam* c, mat4 res);
 
 struct shader {
   uint id;
@@ -80,15 +80,15 @@ struct attrib {
   uint type;
 };
 
-static struct attrib attr_float_1 = {1, GL_FLOAT};
-static struct attrib attr_float_2 = {2, GL_FLOAT};
-static struct attrib attr_float_3 = {3, GL_FLOAT};
-static struct attrib attr_float_4 = {4, GL_FLOAT};
+static struct attrib attr_1f = {1, GL_FLOAT};
+static struct attrib attr_2f = {2, GL_FLOAT};
+static struct attrib attr_3f = {3, GL_FLOAT};
+static struct attrib attr_4f = {4, GL_FLOAT};
 
-static struct attrib attr_int_1 = {1, GL_INT};
-static struct attrib attr_int_2 = {2, GL_INT};
-static struct attrib attr_int_3 = {3, GL_INT};
-static struct attrib attr_int_4 = {4, GL_INT};
+static struct attrib attr_1i = {1, GL_INT};
+static struct attrib attr_2i = {2, GL_INT};
+static struct attrib attr_3i = {3, GL_INT};
+static struct attrib attr_4i = {4, GL_INT};
 
 struct vao
 vao(struct buf* vbo, struct buf* ibo, uint n, struct attrib* attrs);
@@ -221,9 +221,10 @@ struct mod {
 
   struct mesh* meshes;
   int n_meshes;
-
-  struct shader shader;
 };
+
+struct shader*
+mod_get_shader(struct cam* c);
 
 struct mesh
 mod_load_mesh(struct mod* m, struct aiMesh* mesh, struct aiScene const* scene);
@@ -233,4 +234,4 @@ mod_load(struct mod* m, struct aiNode* node, struct aiScene const* scene);
 
 struct mod mod(char const* path);
 
-void mod_draw(struct mod* m, struct game* g);
+void mod_draw(struct mod* m, struct cam* c);

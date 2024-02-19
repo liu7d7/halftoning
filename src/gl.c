@@ -1,15 +1,18 @@
 #include "gl.h"
 #include "err.h"
 #include "game.h"
+#include "dyn_arr.h"
 
-struct cam cam(float* pos, float* world_up, float yaw, float pitch) {
+struct cam
+cam(float* pos, float* world_up, float yaw, float pitch, float aspect) {
   const float default_speed = 2.5f, default_sens = 0.1f, default_zoom = 45.0f;
 
   struct cam c = {
     .front = {0, 0, -1},
     .yaw = yaw, .pitch = pitch, .target_yaw = yaw, .target_pitch = pitch,
     .speed = default_speed, .sens = default_sens, .zoom = default_zoom,
-    .has_last = 0
+    .has_last = 0,
+    .aspect = aspect
   };
 
   vec3cpy(c.pos, pos);
@@ -65,8 +68,9 @@ void cam_look(struct cam* c, vec4* res) {
   glm_look(c->pos, c->front, c->up, res);
 }
 
-void cam_proj(struct cam* c, float const* win_size, vec4* res) {
-  glm_perspective(to_rad(c->zoom), win_size[0] / win_size[1], 0.01f, 300.f, res);
+void cam_proj(struct cam* c, vec4* res) {
+  glm_perspective(to_rad(c->zoom), c->aspect, 0.01f, 3000.f,
+                  res);
 }
 
 void shader_verify(uint gl_id) {
@@ -144,7 +148,8 @@ struct vao vao(struct buf* vbo, struct buf* ibo, uint n, struct attrib* attrs) {
     struct attrib a = attrs[i];
     gl_enable_vertex_array_attrib(v.id, i);
     if (a.type == GL_FLOAT) {
-      gl_vertex_array_attrib_format(v.id, i, a.size, GL_FLOAT, GL_FALSE, offset);
+      gl_vertex_array_attrib_format(v.id, i, a.size, GL_FLOAT, GL_FALSE,
+                                    offset);
     } else {
       gl_vertex_array_attrib_i_format(v.id, i, a.size, GL_INT, offset);
     }
@@ -170,7 +175,8 @@ struct buf* buf_heap_new(uint type) {
   return memcpy(malloc(sizeof(b)), &b, sizeof(b));
 }
 
-void buf_data_n(struct buf* b, uint usage, ssize_t elem_size, ssize_t n, void* data) {
+void buf_data_n(struct buf* b, uint usage, ssize_t elem_size, ssize_t n,
+                void* data) {
   buf_data(b, usage, n * elem_size, data);
 }
 
@@ -192,7 +198,8 @@ void buf_bind(struct buf* b) {
 
 void shader_mat4(struct shader* s, char const* n, mat4 m) {
   shader_bind(s);
-  gl_uniform_matrix_4fv(gl_get_uniform_location(s->id, n), 1, GL_TRUE, &m[0][0]);
+  gl_uniform_matrix_4fv(gl_get_uniform_location(s->id, n), 1, GL_TRUE,
+                        &m[0][0]);
 }
 
 void shader_int(struct shader* s, char const* n, int m) {
@@ -342,7 +349,8 @@ struct tex* fbo_tex_at(struct fbo* f, uint buf) {
 }
 
 void
-fbo_blit(struct fbo* src, struct fbo* dst, uint src_a, uint dst_a, uint filter) {
+fbo_blit(struct fbo* src, struct fbo* dst, uint src_a, uint dst_a,
+         uint filter) {
   // @formatter:off
   int src_mask =
     is_gl_buf_color_attachment(src_a) ?
@@ -435,34 +443,28 @@ mod_load_mesh(struct mod* m, struct aiMesh* mesh, const struct aiScene* scene) {
              mesh->mNumVertices,
              vtxs);
 
-  int n_inds = 0;
-  for (int i = 0; i < mesh->mNumFaces; i++) {
-    n_inds += (int)mesh->mFaces[i].mNumIndices;
-  }
-
-  uint* inds = malloc(n_inds * sizeof(uint));
-  int cur_ind = 0;
+  uint* inds = dyn_arr(uint, 4);
   for (int i = 0; i < mesh->mNumFaces; i++) {
     for (int j = 0; j < mesh->mFaces[i].mNumIndices; j++) {
-      inds[cur_ind++] = mesh->mFaces[i].mIndices[j];
+      dyn_arr_add(inds, &mesh->mFaces[i].mIndices[j]);
     }
   }
 
   buf_data_n(&ibo,
              GL_DYNAMIC_STORAGE_BIT,
              sizeof(uint),
-             n_inds,
+             dyn_arr_count(inds),
              inds);
-
-  free(inds);
 
   struct mesh me = {
     .vtxs = vtxs,
     .n_vtxs = (int)mesh->mNumVertices,
-    .n_inds = n_inds,
+    .n_inds = dyn_arr_count(inds),
     .vao = vao(&vbo, &ibo, 3,
-               (struct attrib[]){attr_float_3, attr_float_3, attr_float_2})
+               (struct attrib[]){attr_3f, attr_3f, attr_2f})
   };
+
+  dyn_arr_del(inds);
 
   return me;
 }
@@ -490,12 +492,7 @@ struct mod mod(const char* path) {
   }
 
   struct mod m = {
-    .meshes = malloc(sizeof(struct mesh) * scene->mNumMeshes),
-    .shader = shader(2,
-                     (struct shader_spec[]){
-                       {GL_VERTEX_SHADER, "res/mod.vsh"},
-                       {GL_FRAGMENT_SHADER, "res/mod.fsh"},
-                     })
+    .meshes = malloc(sizeof(struct mesh) * scene->mNumMeshes)
   };
 
   mod_load(&m, scene->mRootNode, scene);
@@ -503,16 +500,9 @@ struct mod mod(const char* path) {
   return m;
 }
 
-void mod_draw(struct mod* m, struct game* g) {
+void mod_draw(struct mod* m, struct cam* c) {
   for (int i = 0; i < m->n_meshes; i++) {
-    struct shader* s = &m->shader;
-    mat4 mat;
-    cam_proj(&g->cam, g->win_size, mat);
-    shader_mat4(s, "u_proj", mat);
-    cam_look(&g->cam, mat);
-    shader_mat4(s, "u_look", mat);
-    shader_vec3(s, "u_eye", g->cam.pos);
-    shader_bind(s);
+    (void)mod_get_shader(c);
 
     vao_bind(&m->meshes[i].vao);
     gl_draw_elements(GL_TRIANGLES, m->meshes[i].n_inds, GL_UNSIGNED_INT, 0);
@@ -527,4 +517,26 @@ struct mod_vtx mod_vtx(float* pos, float* norm, float* uvs) {
   vec2cpy(vtx.uvs, uvs);
 
   return vtx;
+}
+
+struct shader* mod_get_shader(struct cam* c) {
+  static struct shader* sh = NULL;
+  if (!sh) {
+    struct shader s = shader(2,
+                             (struct shader_spec[]){
+                               {GL_VERTEX_SHADER,   "res/mod.vsh"},
+                               {GL_FRAGMENT_SHADER, "res/mod.fsh"},
+                             });
+    sh = memcpy(malloc(sizeof(s)), &s, sizeof(s));
+  }
+
+  mat4 mat;
+  cam_proj(c, mat);
+  shader_mat4(sh, "u_proj", mat);
+  cam_look(c, mat);
+  shader_mat4(sh, "u_look", mat);
+  shader_vec3(sh, "u_eye", c->pos);
+  shader_bind(sh);
+
+  return sh;
 }

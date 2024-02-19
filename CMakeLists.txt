@@ -14,7 +14,15 @@ add_executable(game main.c src/lib/glad/glad.c src/lib/glad/glad.h src/lib/glad/
         src/gl.h
         src/err.h
         src/game.c
-        src/gl.c)
+        src/gl.c
+        src/dyn_arr.h
+        src/dyn_arr.c
+        src/lib/simplex/FastNoiseLite.h
+        src/lib/simplex/FastNoiseLite.c
+        src/map.h
+        src/map.c
+        src/world.h
+        src/world.c)
 
 find_package(cglm CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)

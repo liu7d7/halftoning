@@ -12,7 +12,7 @@ uniform mat4 u_proj;
 uniform mat4 u_look;
 
 void main() {
-  vec4 final = vec4(pos * 30, 1.) * u_look * u_proj;
+  vec4 final = vec4(pos, 1.) * u_look * u_proj;
   v_norm = norm;
   v_pos = final.xyz;
   v_tex = tex;

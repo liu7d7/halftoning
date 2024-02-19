@@ -1,6 +1,7 @@
 #include "game.h"
 #include "lib/glad/glad.h"
 #include "gl.h"
+#include "world.h"
 
 /*-- game --*/
 
@@ -25,7 +26,7 @@ struct game game(int width, int height, const char* name) {
 
   glfw_make_context_current(win);
   glfw_set_framebuffer_size_callback(win, framebuffer_size_callback);
-  glfw_set_cursor_pos_callback(win, cursor_pos_callback);
+//  glfw_set_cursor_pos_callback(win, cursor_pos_callback);
   glfw_set_key_callback(win, key_callback);
   glfw_set_mouse_button_callback(win, mouse_button_callback);
   glfw_swap_interval(1);
@@ -52,19 +53,19 @@ struct game game(int width, int height, const char* name) {
     .win = win,
     .win_size = {(float)width, (float)height},
     .is_mouse_captured = true,
-    .post = vao(&post_vbo, NULL, 1, (struct attrib[]){attr_float_2}),
-    .cam = cam((vec3){0.f, 0.f, 0.f}, (vec3){0.f, 1.f, 0.f}, 0.f, 0.f),
+    .post = vao(&post_vbo, NULL, 1, (struct attrib[]){attr_2f}),
+    .cam = cam((vec3){0.f, 50.f, 0.f}, (vec3){0.f, 1.f, 0.f}, 45.f, -30.f, (float)width / (float)height),
     .main = fbo(2,
                 (struct fbo_spec[]){
                   {GL_COLOR_ATTACHMENT0, tex_spec_rgba8(width, height,
-                                                        GL_NEAREST)},
+                                                        GL_LINEAR)},
                   {GL_DEPTH_ATTACHMENT,  tex_spec_depth24(width, height,
                                                           GL_NEAREST)}
                 }),
     .cmyk = fbo(1, (struct fbo_spec[]){
-      {GL_COLOR_ATTACHMENT0, tex_spec_rgba16(width, height, GL_NEAREST)}}),
+      {GL_COLOR_ATTACHMENT0, tex_spec_rgba16(width, height, GL_LINEAR)}}),
     .cmyk2 = fbo(1, (struct fbo_spec[]){
-      {GL_COLOR_ATTACHMENT0, tex_spec_rgba16(width, height, GL_NEAREST)}}),
+      {GL_COLOR_ATTACHMENT0, tex_spec_rgba16(width, height, GL_LINEAR)}}),
     .to_cmyk = shader(2,
                       (struct shader_spec[]){
                         {GL_VERTEX_SHADER,   "res/post.vsh"},
@@ -85,7 +86,8 @@ struct game game(int width, int height, const char* name) {
                      {GL_VERTEX_SHADER,   "res/post.vsh"},
                      {GL_FRAGMENT_SHADER, "res/blur.fsh"}
                    }),
-    .cube = mod("res/hana.obj")
+    .cube = mod("res/hana.obj"),
+    .world = world()
   };
 }
 
@@ -154,7 +156,8 @@ void game_run(struct game* g) {
     update_camera(g);
 
     // draw the thing
-    mod_draw(&g->cube, g);
+    mod_draw(&g->cube, &g->cam);
+    world_draw(&g->world, &g->cam);
 
     if (g->is_rendering_halftone) {
       // convert to cmyk
@@ -196,7 +199,7 @@ void game_run(struct game* g) {
                   (struct halftone){
                     .cmyk = fbo_tex_at(&g->cmyk2, GL_COLOR_ATTACHMENT0),
                     .unit = 0,
-                    .dots_per_line = 256,
+                    .dots_per_line = 384,
                     .scr_size = VEC2_COPY_INIT(g->win_size)
                   });
 
@@ -240,6 +243,7 @@ void framebuffer_size_callback(GLFWwindow* win, int width, int height) {
   fbo_resize(&k->cmyk2, width, height, 1, (uint[]){GL_COLOR_ATTACHMENT0});
   fbo_resize(&k->main, width, height, 2,
              (uint[]){GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT});
+  k->cam.aspect = (float)width / (float)height;
   gl_viewport(0, 0, width, height);
 }
 
