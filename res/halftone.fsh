@@ -18,11 +18,6 @@ float neg_dot_size = -u_dot_size, dot_size_x2 = 2 * u_dot_size;
 // v01 v11 v21 v31
 // v00 v10 v20 v30
 
-// 0 1 2 3
-// 3 4 5 6
-// 6 7 8 9
-// 10 11 12 13
-
 vec4 colors[4][4];
 vec2 poses[4][4];
 

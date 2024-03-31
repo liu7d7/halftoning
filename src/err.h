@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdio.h>
+
 #define result_definition(name, T) \
 struct name { \
   union {                  \
@@ -35,7 +37,7 @@ static T name##_get(struct name self) {                     \
 
 [[noreturn]]
 
-static void throw_c(char const* error) {
+static void throw_c(char const *error) {
   fprintf(stderr, "%s\n", error);
   exit(-1);
 }

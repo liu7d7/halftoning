@@ -10,10 +10,12 @@ layout (location = 2) out vec2 v_tex;
 
 uniform mat4 u_proj;
 uniform mat4 u_look;
+uniform mat4 u_model;
+uniform mat4 u_model_no_scale;
 
 void main() {
-  vec4 final = vec4(pos, 1.) * u_look * u_proj;
-  v_norm = norm;
+  vec4 final = vec4(pos, 1.) * u_model * u_look * u_proj;
+  v_norm = norm * mat3(transpose(inverse(u_model_no_scale)));
   v_pos = final.xyz;
   v_tex = tex;
   gl_Position = final;

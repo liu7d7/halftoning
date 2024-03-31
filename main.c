@@ -1,8 +1,8 @@
-#include "src/game.h"
+#include "src/app.h"
 
 int main() {
-  struct game g = game(2304, 1440, "ﾌｨﾎﾞ");
-  game_run(&g);
-  game_cleanup(&g);
+  app g = app_new(2304, 1440, "monkey");
+  app_run(&g);
+  app_cleanup(&g);
   return 0;
 }

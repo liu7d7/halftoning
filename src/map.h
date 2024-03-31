@@ -2,37 +2,40 @@
 
 #include <assert.h>
 #include "typedefs.h"
-#include "dyn_arr.h"
+#include "arr.h"
 #include "err.h"
 
-struct entry {
+typedef struct entry {
   size_t key_idx;
   size_t val_idx;
-  struct entry* next;
-};
+  struct entry *next;
+} entry;
 
-struct map {
-  void* keys;
-  void* vals;
-  struct entry* entries;
+typedef struct map {
+  void *keys;
+  void *vals;
+  entry *entries;
   size_t c_entries, n_entries, key_size, val_size;
   float load_factor;
 
-  bool (* eq)(void* lhs, void* rhs);
+  bool (*eq)(void *lhs, void *rhs);
 
-  size_t (* hash)(void* key);
-};
+  size_t (*hash)(void *key);
+} map;
 
-struct entry* internal_map_new_entries(size_t size);
+entry *internal_map_new_entries(size_t size);
 
-struct map map(size_t initial_size, size_t key_size, size_t val_size, float load_factor, bool(*eq)(void*, void*), size_t(*hash)(void*));
+map
+map_new(size_t initial_size, size_t key_size, size_t val_size,
+        float load_factor,
+        bool(*eq)(void *, void *), size_t(*hash)(void *));
 
-bool internal_map_entry_is_invalid(struct entry* entry);
+bool internal_map_entry_is_invalid(entry *entry);
 
-void internal_map_insert_entry(struct map* d, struct entry* e);
+void internal_map_insert_entry(map *d, entry *e);
 
-void map_set(struct map* d, void* key, void* val);
+void map_add(map *d, void *key, void *val);
 
-void* map_at(struct map* d, void* key);
+void *map_at(map *d, void *key);
 
-bool map_has(struct map* d, void* key);
+bool map_has(map *d, void *key);

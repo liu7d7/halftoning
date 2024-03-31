@@ -1,127 +1,208 @@
 #include "world.h"
+#include "typedefs.h"
+#include "obj.h"
 
-float chunk_get_y(const float* world_pos) {
-  static fnl_state* noise = NULL;
+float chunk_get_y(v3f world_pos) {
+  static fnl_state *noise = NULL;
   if (!noise) {
     fnl_state s = fnlCreateState();
     noise = memcpy(malloc(sizeof(s)), &s, sizeof(s));
     noise->noise_type = FNL_NOISE_OPENSIMPLEX2S;
   }
 
-  return fnlGetNoise2D(noise, world_pos[0] * 6, world_pos[2] * 6) * 15.f + fnlGetNoise2D(noise, world_pos[0] * 0.5f, world_pos[2] * 0.5f) * 3;
+  return fnlGetNoise2D(noise, world_pos.x * 12, world_pos.z * 12) * 1.5f +
+         fnlGetNoise2D(noise, world_pos.x, world_pos.z) * 8.5f;
 }
 
-void chunk_get_pos(const int* pos, int off_x, int off_z, float* out) {
-  vec3 base = {
-    (float)pos[0] * (float)chunk_size + (float)off_x * chunk_ratio,
+v3f chunk_get_pos(v2i pos, int off_x, int off_z) {
+  v3f base = {
+    (float)pos.x * (float)chunk_size + (float)off_x * chunk_ratio,
     0,
-    (float)pos[1] * (float)chunk_size + (float)off_z * chunk_ratio
+    (float)pos.y * (float)chunk_size + (float)off_z * chunk_ratio
   };
 
-  base[1] = chunk_get_y(base);
-  vec3cpy(out, base);
+  base.y = chunk_get_y(base);
+  return base;
 }
 
-struct chunk chunk(int* pos) {
-  struct chunk_vtx* verts = dyn_arr(struct chunk_vtx, 4);
+chunk chunk_new(v2i pos) {
+  chunk_vtx *verts = arr_new(chunk_vtx, 4);
+  tri *tris = arr_new(tri, 4);
 
   for (int i = 0; i < chunk_len; i++) {
     for (int j = 0; j < chunk_len; j++) {
-      vec3 a, b, c, d, ba, ca, da, n_abc, n_acd;
-      chunk_get_pos(pos, i, j, a);
-      chunk_get_pos(pos, i, j + 1, b);
-      chunk_get_pos(pos, i + 1, j + 1, c);
-      chunk_get_pos(pos, i + 1, j, d);
+      v3f
+        a = chunk_get_pos(pos, i, j),
+        b = chunk_get_pos(pos, i, j + 1),
+        c = chunk_get_pos(pos, i + 1, j + 1),
+        d = chunk_get_pos(pos, i + 1, j);
 
-      glm_vec3_sub(b, a, ba);
-      glm_vec3_sub(c, a, ca);
-      glm_vec3_sub(d, a, da);
+      v3f n_abc = v3_normed(v3_cross(v3_sub(b, a), v3_sub(c, a)));
+      v3f n_acd = v3_normed(v3_cross(v3_sub(c, a), v3_sub(d, a)));
 
-      glm_cross(ba, ca, n_abc);
-      glm_cross(ca, da, n_acd);
-      glm_normalize(n_abc);
-      glm_normalize(n_acd);
+      arr_add(&verts, &(chunk_vtx){.pos = a, .norm = n_abc});
+      arr_add(&verts, &(chunk_vtx){.pos = b, .norm = n_abc});
+      arr_add(&verts, &(chunk_vtx){.pos = c, .norm = n_abc});
 
-      dyn_arr_add(verts, &(struct chunk_vtx){
-        .pos = VEC3_COPY_INIT(a),
-        .norm = VEC3_COPY_INIT(n_abc)
-      });
-      dyn_arr_add(verts, &(struct chunk_vtx){
-        .pos = VEC3_COPY_INIT(b),
-        .norm = VEC3_COPY_INIT(n_abc)
-      });
-      dyn_arr_add(verts, &(struct chunk_vtx){
-        .pos = VEC3_COPY_INIT(c),
-        .norm = VEC3_COPY_INIT(n_abc)
-      });
+      tri t = tri_new(a, b, c, n_abc, 0);
+      arr_add(&tris, &t);
 
-      dyn_arr_add(verts, &(struct chunk_vtx){
-        .pos = VEC3_COPY_INIT(a),
-        .norm = VEC3_COPY_INIT(n_acd)
-      });
-      dyn_arr_add(verts, &(struct chunk_vtx){
-        .pos = VEC3_COPY_INIT(c),
-        .norm = VEC3_COPY_INIT(n_acd)
-      });
-      dyn_arr_add(verts, &(struct chunk_vtx){
-        .pos = VEC3_COPY_INIT(d),
-        .norm = VEC3_COPY_INIT(n_acd)
-      });
+      arr_add(&verts, &(chunk_vtx){.pos = a, .norm = n_acd});
+      arr_add(&verts, &(chunk_vtx){.pos = c, .norm = n_acd});
+      arr_add(&verts, &(chunk_vtx){.pos = d, .norm = n_acd});
+
+      t = tri_new(a, c, d, n_acd, 0);
+      arr_add(&tris, &t);
     }
   }
 
-  struct buf vbo = buf(GL_ARRAY_BUFFER);
-  buf_data_n(&vbo, GL_DYNAMIC_STORAGE_BIT, sizeof(struct chunk_vtx),
-             dyn_arr_count(verts), verts);
+  buf vbo = buf_new(GL_ARRAY_BUFFER);
+  buf_data_n(&vbo, GL_DYNAMIC_DRAW, sizeof(chunk_vtx),
+             arr_len(verts), verts);
 
-  struct chunk c = {
-    .vao = vao(&vbo, NULL, 3, (struct attrib[]){attr_3f, attr_3f, attr_2f}),
-    .pos = VEC2_COPY_INIT(pos),
-    .n_inds = dyn_arr_count(verts)
+  chunk c = {
+    .vao = vao_new(&vbo, NULL, 3, (attrib[]){attr_3f, attr_3f, attr_2f}),
+    .pos = pos,
+    .n_inds = arr_len(verts),
+    .obj = (obj){.m = tmesh_new(tris)}
   };
 
-  dyn_arr_del(verts);
+  arr_del(verts);
 
   return c;
 }
 
-struct world world() {
-  return (struct world) {
-    .chunks = map(16, sizeof(ivec2), sizeof(struct chunk), 0.75f, ivec2_eq, ivec2_hash)
+world world_new() {
+  world w = {
+    .chunks = map_new(16, sizeof(v2i), sizeof(chunk), 0.75f, iv2_eq, iv2_hash),
+    .objs = arr_new(obj, 4)
   };
+
+  for (int i = -world_draw_dist * 2; i <= world_draw_dist * 2; i++) {
+    for (int j = -world_draw_dist * 2; j <= world_draw_dist * 2; j++) {
+      chunk c = chunk_new((v2i){i, j});
+      map_add(&w.chunks, &(v2i){i, j}, &c);
+    }
+  }
+
+  for (int i = 0; i < 64; i++) {
+    arr_add(&w.objs, &(obj){.c = cap_new((v3f){4.f * (i % 8), 30, 4.f * (i / 8)}, v3_uy, 0.5f, 3.f)});
+  }
+
+  for (int i = 0; i < world_sp_size; i++) {
+    for (int j = 0; j < world_sp_size; j++) {
+      w.regions[i][j] = reg_new();
+    }
+  }
+
+  return w;
 }
 
-void world_get_chunk_pos(const float* world_pos, int* out) {
-  out[0] = (int)(world_pos[0] / (float)chunk_size);
-  out[1] = (int)(world_pos[2] / (float)chunk_size);
+v2i world_get_chunk_pos(v3f world_pos) {
+  return (v2i){(int)(world_pos.x / (float)chunk_size),
+               (int)(world_pos.z / (float)chunk_size)};
 }
 
-void world_draw(struct world* w, struct cam* c) {
-  ivec2 cam_to_chunk;
-  world_get_chunk_pos(c->pos, cam_to_chunk);
+void world_tick(world *w, cam *c) {
+  // clear the reg partition
+  for (int i = 0; i < world_sp_size; i++) {
+    for (int j = 0; j < world_sp_size; j++) {
+      reg *s = &w->regions[i][j];
+      reg_clear(s);
+    }
+  }
 
-  (void)mod_get_shader(c);
+  // handle all chunks
+  v2i cam_pos = world_get_chunk_pos(c->pos);
+  for (int i = -world_draw_dist; i <= world_draw_dist; i++) {
+    for (int j = -world_draw_dist; j <= world_draw_dist; j++) {
+      if (sqrt(i * i + j * j) > world_draw_dist + 1) continue;
 
-  const int render_distance = 6;
-  bool first_gen = true;
-  for (int i = -render_distance; i <= render_distance; i++) {
-    for (int j = -render_distance; j <= render_distance; j++) {
-      if (sqrt(i * i + j * j) > render_distance + 1) {
-        continue;
+      v2i chunk_pos = {cam_pos.x + i, cam_pos.y + j};
+
+      chunk *ch = map_at(&w->chunks, &chunk_pos);
+      if (!ch) continue;
+
+      reg *r =
+        &w->regions[i + world_draw_dist][j + world_draw_dist];
+
+      reg_add_sta(r, &ch->obj);
+    }
+  }
+
+  // handle all objects
+  for (obj *o = w->objs; o != (obj *)arr_end(w->objs); o++) {
+    *obj_get_prev_pos(o) = *obj_get_pos(o);
+    v2i obj_pos = world_get_chunk_pos(*obj_get_pos(o));
+    v2i off = iv2_sub(obj_pos, cam_pos);
+    for (int i = -1; i <= 1; i++) {
+      for (int j = -1; j <= 1; j++) {
+        if (abs(off.x + i) <= world_draw_dist &&
+            abs(off.y + j) <= world_draw_dist) {
+          reg *r = &w->regions[off.x + i + world_draw_dist][off.y + j +
+                                                            world_draw_dist];
+          reg_add_dyn(r, o);
+        }
+      }
+    }
+  }
+
+  // tick each region
+  int const sub_steps = 4;
+  float const step_time = 1.f / (float)sub_steps;
+
+  for (int t = 0; t < sub_steps; t++) {
+    for (obj *o = w->objs; o != arr_end(w->objs); o++) {
+      obj_tick(o, step_time);
+    }
+
+    for (int i = 0; i < world_sp_size; i++) {
+      for (int j = 0; j < world_sp_size; j++) {
+        reg *s = &w->regions[i][j];
+        if (!reg_is_tickable(s)) continue;
+
+        reg_tick(s);
+      }
+    }
+  }
+}
+
+void world_draw(world *w, cam *c, float d) {
+  v2i cam_to_chunk = world_get_chunk_pos(c->pos);
+
+  (void)mod_get_shader(c, m4_ident, d);
+
+  int n_gen = 0;
+  for (int i = -world_draw_dist; i <= world_draw_dist; i++) {
+    for (int j = -world_draw_dist; j <= world_draw_dist; j++) {
+      if (sqrt(i * i + j * j) > world_draw_dist + 1) continue;
+
+      v2i chunk_pos = {cam_to_chunk.x + i, cam_to_chunk.y + j};
+
+      if (!map_has(&w->chunks, &chunk_pos) && n_gen < 4) {
+        chunk gen = chunk_new(chunk_pos);
+        map_add(&w->chunks, &chunk_pos, &gen);
+        n_gen++;
       }
 
-      ivec2 chunk_pos = {cam_to_chunk[0] + i, cam_to_chunk[1] + j};
-      if (!map_has(&w->chunks, &chunk_pos) && first_gen) {
-        struct chunk gen = chunk(chunk_pos);
-        map_set(&w->chunks, &chunk_pos, &gen);
-        first_gen = false;
-      }
-
-      struct chunk* ch = map_at(&w->chunks, &chunk_pos);
+      chunk *ch = map_at(&w->chunks, &chunk_pos);
       if (!ch) continue;
 
       vao_bind(&ch->vao);
       gl_draw_arrays(GL_TRIANGLES, 0, ch->n_inds);
+    }
+  }
+
+  for (int i = 0; i < world_sp_size; i++) {
+    for (int j = 0; j < world_sp_size; j++) {
+      reg *r = &w->regions[i][j];
+      for (obj **op = r->dyn; op != arr_end(r->dyn); op++) {
+        obj_draw(*op, c, d);
+      }
+
+      for (obj *o = r->sta; o != arr_end(r->sta); o++) {
+        obj_draw(o, c, d);
+      }
     }
   }
 }

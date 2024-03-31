@@ -2,40 +2,53 @@
 
 #include "gl.h"
 #include "lib/simplex/FastNoiseLite.h"
-#include "dyn_arr.h"
+#include "arr.h"
 #include "map.h"
+#include "reg.h"
 
-static const int chunk_size = 64;
-static const int chunk_qty = 64;
+/*-- a 3d world using simplex noise. --*/
+
+static const int chunk_size = 16;
+static const int chunk_qty = 16;
 static const int chunk_len = chunk_qty + 1;
 static const float chunk_ratio = (float)chunk_size / (float)chunk_qty;
 
-struct chunk {
-  struct vao vao;
+typedef struct chunk {
+  vao vao;
   int n_inds;
-  ivec2 pos;
-};
+  v2i pos;
 
-struct chunk_vtx {
-  vec3 pos;
-  vec3 norm;
-  vec2 padding;
-};
+  obj obj;
+} chunk;
 
-float chunk_get_y(vec3 const world_pos);
+typedef struct chunk_vtx {
+  v3f pos;
+  v3f norm;
+  v2f padding;
+} chunk_vtx;
 
-void chunk_get_pos(ivec2 const pos, int off_x, int off_z, vec3 out);
+float chunk_get_y(v3f world_pos);
 
-struct chunk chunk(ivec2 pos);
+v3f chunk_get_pos(v2i pos, int off_x, int off_z);
 
-struct world {
-  // ivec2 -> chunk
-  struct map chunks;
-};
+chunk chunk_new(v2i pos);
+
+#define world_draw_dist 12
+#define world_sp_size (world_draw_dist * 2 + 1)
+
+typedef struct world {
+  // v2i -> chunk
+  map chunks;
+  reg regions[world_sp_size][world_sp_size];
+
+  obj *objs;
+} world;
 
 // requires an opengl context!
-struct world world();
+world world_new();
 
-void world_get_chunk_pos(vec3 const world_pos, ivec2 out);
+v2i world_get_chunk_pos(v3f world_pos);
 
-void world_draw(struct world* w, struct cam* c);
+void world_tick(world *w, cam *c);
+
+void world_draw(world *w, cam *c, float d);

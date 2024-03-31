@@ -1255,7 +1255,7 @@ typedef void (* GLFWwindowposfun)(GLFWwindow* window, int xpos, int ypos);
  *  @param[in] width The new width_of, in screen coordinates, of the window.
  *  @param[in] height The new height, in screen coordinates, of the window.
  *
- *  @sa @ref win_size
+ *  @sa @ref size
  *  @sa @ref glfw_set_window_size_callback
  *
  *  @since Added in version 1.0.
@@ -2589,7 +2589,7 @@ GLFWAPI void glfwWindowHintString(int hint, const char* value);
  *
  *  Window systems put limits on window sizes.  Very large or very small window
  *  dimensions may be overridden by the window system on creation.  Check the
- *  actual [size](@ref win_size) after creation.
+ *  actual [size](@ref size) after creation.
  *
  *  The [swap interval](@ref buffer_swap) is not set during window creation and
  *  the initial value may vary depending on driver settings and defaults.
@@ -2929,7 +2929,7 @@ GLFWAPI void glfwSetWindowPos(GLFWwindow* window, int xpos, int ypos);
  *
  *  @thread_safety This function must only be called from the main thread.
  *
- *  @sa @ref win_size
+ *  @sa @ref size
  *  @sa @ref glfwSetWindowSize
  *
  *  @since Added in version 1.0.
@@ -3057,7 +3057,7 @@ GLFWAPI void glfwSetWindowAspectRatio(GLFWwindow* window, int numer, int denom);
  *
  *  @thread_safety This function must only be called from the main thread.
  *
- *  @sa @ref win_size
+ *  @sa @ref size
  *  @sa @ref glfwGetWindowSize
  *  @sa @ref glfwSetWindowMonitor
  *
@@ -3127,7 +3127,7 @@ glfwGetFramebufferSize(GLFWwindow* window, int* width, int* height);
  *
  *  @thread_safety This function must only be called from the main thread.
  *
- *  @sa @ref win_size
+ *  @sa @ref size
  *
  *  @since Added in version 3.1.
  *
@@ -3687,7 +3687,7 @@ glfwSetWindowPosCallback(GLFWwindow* window, GLFWwindowposfun callback);
  *
  *  @thread_safety This function must only be called from the main thread.
  *
- *  @sa @ref win_size
+ *  @sa @ref size
  *
  *  @since Added in version 1.0.
  *  @glfw3 Added window handle parameter and return value.

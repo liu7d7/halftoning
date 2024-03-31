@@ -28,4 +28,4 @@ technical stuff:
     stride & offset in bytes!
 
   what kind of world do we use?
-    perhaps procedurally generated + modeled stuff
+    perhaps procedurally generated & modeled stuff

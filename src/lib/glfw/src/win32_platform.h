@@ -448,7 +448,7 @@ typedef struct _GLFWtlsWin32 {
   DWORD index;
 } _GLFWtlsWin32;
 
-// Win32-specific mutex data
+// Win32-specific lock data
 //
 typedef struct _GLFWmutexWin32 {
   GLFWbool allocated;
