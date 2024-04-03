@@ -13,8 +13,7 @@ struct app;
 
 typedef struct cam {
   v3f pos, front, up, right, world_up;
-  v3f prev_pos;
-  float prev_yaw, yaw, prev_pitch, pitch, speed, vel, sens, zoom, aspect;
+  float target_yaw, yaw, target_pitch, pitch, speed, vel, sens, zoom, aspect;
 
   v2f last_mouse_pos;
   bool has_last;
@@ -24,15 +23,9 @@ cam cam_new(v3f pos, v3f world_up, float yaw, float pitch, float aspect);
 
 void cam_tick(cam *c, struct app *g);
 
-void cam_rot(cam *c, float d);
+void cam_rot(cam *c);
 
-v3f cam_get_pos(cam *c, float d);
-
-float cam_get_yaw(cam *c, float d);
-
-float cam_get_pitch(cam *c, float d);
-
-m4f cam_get_look(cam *c, float d);
+m4f cam_get_look(cam *c);
 
 m4f cam_get_proj(cam *c);
 
@@ -77,12 +70,6 @@ void buf_data(buf *b, uint usage, ssize_t size_in_bytes, void *data);
 
 void buf_bind(buf *b);
 
-typedef struct vao {
-  uint id;
-} vao;
-
-void vao_bind(vao *v);
-
 typedef struct attrib {
   int size;
   uint type;
@@ -98,8 +85,19 @@ static attrib attr_2i = {2, GL_INT};
 static attrib attr_3i = {3, GL_INT};
 static attrib attr_4i = {4, GL_INT};
 
+typedef struct vao {
+  uint id;
+  attrib *attrs;
+  int n_attrs;
+  int stride;
+} vao;
+
+void vao_bind(vao *v);
+
 vao
 vao_new(buf *vbo, buf *ibo, uint n, attrib *attrs);
+
+void imod_opti_vao(vao *v, buf *model);
 
 int attrib_get_size_in_bytes(attrib *attr);
 
@@ -234,7 +232,7 @@ typedef struct mod {
   int n_meshes;
 } mod;
 
-shader *mod_get_shader(cam *c, m4f t, float d);
+shader *mod_get_sh(cam *c, m4f t);
 
 mesh mod_load_mesh(mod *m, struct aiMesh *mesh, struct aiScene const *scene);
 
@@ -242,6 +240,22 @@ void mod_load(mod *m, struct aiNode *node, struct aiScene const *scene);
 
 mod mod_new(char const *path);
 
-void mod_draw(mod *m, cam *c, m4f t, float d);
+void mod_draw(mod *m, cam *c, m4f t);
+
+typedef struct imod {
+  tex *texes;
+  int n_texes;
+
+  mesh *meshes;
+  int n_meshes;
+
+  m4f *model;
+  buf model_buf;
+} imod;
+
+imod *imod_new(mod m);
+shader *imod_get_sh(cam *c);
+void imod_draw(cam *c);
+void imod_add(imod *m, m4f trans);
 
 int *quad_indices(int w, int h);

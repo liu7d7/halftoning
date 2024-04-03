@@ -50,3 +50,5 @@ void *arr_end(void *memory);
 bool arr_is_empty(void *memory);
 
 char *arr_get_sz(char *memory);
+
+void arr_copy(void *dst, void *src);

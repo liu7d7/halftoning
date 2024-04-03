@@ -29,3 +29,6 @@ technical stuff:
 
   what kind of world do we use?
     perhaps procedurally generated & modeled stuff
+
+ticking issue:
+  render thread still on old state, but dt wraps around to zero again.

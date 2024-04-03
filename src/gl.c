@@ -9,12 +9,11 @@ cam_new(v3f pos, v3f world_up, float yaw, float pitch, float aspect) {
 
   cam c = {
     .front = {0, 0, -1},
-    .yaw = yaw, .pitch = pitch, .prev_yaw = yaw, .prev_pitch = pitch,
+    .yaw = yaw, .pitch = pitch, .target_pitch = pitch, .target_yaw = yaw,
     .speed = default_speed, .sens = default_sens, .zoom = default_zoom,
     .has_last = 0,
     .aspect = aspect,
     .pos = pos,
-    .prev_pos = pos,
     .world_up = world_up,
     .up = world_up
   };
@@ -23,28 +22,28 @@ cam_new(v3f pos, v3f world_up, float yaw, float pitch, float aspect) {
 }
 
 void cam_tick(cam *c, app *g) {
-  c->prev_pitch = c->pitch;
-  c->prev_yaw = c->yaw;
-
   if (c->has_last && g->is_mouse_captured) {
     v2f delta = v2_sub(g->mouse, c->last_mouse_pos);
-    c->yaw += delta.x;
-    c->pitch -= delta.y;
+    c->target_yaw += delta.x;
+    c->target_pitch -= delta.y;
 
-    if (c->pitch > 89.9f) c->pitch = 89.9f;
-    if (c->pitch < -89.9f) c->pitch = -89.9f;
+    if (c->target_pitch > 89.9f) c->target_pitch = 89.9f;
+    if (c->target_pitch < -89.9f) c->target_pitch = -89.9f;
   }
 
-  c->has_last = true;
-  c->last_mouse_pos = g->mouse;
+  if (g->is_mouse_captured) {
+    c->has_last = true;
+    c->last_mouse_pos = g->mouse;
+  }
 }
 
-m4f cam_get_look(cam *c, float d) {
-  return m4_look(cam_get_pos(c, d), c->front, c->up);
+m4f cam_get_look(cam *c) {
+  return m4_look(c->pos, c->front, c->up);
 }
 
 m4f cam_get_proj(cam *c) {
-  return m4_persp(rad(c->zoom), c->aspect, 0.01f, 144.f);
+  return m4_persp(rad(c->zoom), c->aspect, 0.01f,
+                  sqrtf(2.f) * 0.5f * chunk_size * world_draw_dist);
 }
 
 void shader_verify(uint gl_id) {
@@ -106,14 +105,15 @@ shader shader_new(uint n, shader_spec *shaders) {
 }
 
 struct vao vao_new(buf *vbo, buf *ibo, uint n, attrib *attrs) {
-  struct vao v = {.id = 0};
-  gl_create_vertex_arrays(1, &v.id);
-
   int stride = 0;
   for (int i = 0; i < n; i++) {
     attrib a = attrs[i];
     stride += a.size * (int)(a.type == GL_INT ? sizeof(int) : sizeof(float));
   }
+
+  struct vao v = {.id = 0, .n_attrs = n, .attrs = malloc(sizeof(attrib) * n), .stride = stride};
+  memcpy(v.attrs, attrs, sizeof(attrib) * n);
+  gl_create_vertex_arrays(1, &v.id);
 
   gl_vertex_array_vertex_buffer(v.id, 0, vbo->id, 0, stride);
 
@@ -491,16 +491,16 @@ mod mod_new(const char *path) {
   return m;
 }
 
-void mod_draw(mod *m, cam *c, m4f t, float d) {
+void mod_draw(mod *m, cam *c, m4f t) {
   for (int i = 0; i < m->n_meshes; i++) {
-    (void)mod_get_shader(c, t, d);
+    (void)mod_get_sh(c, t);
 
     vao_bind(&m->meshes[i].vao);
     gl_draw_elements(GL_TRIANGLES, m->meshes[i].n_inds, GL_UNSIGNED_INT, 0);
   }
 }
 
-shader *mod_get_shader(cam *c, m4f t, float d) {
+shader *mod_get_sh(cam *c, m4f t) {
   static shader *sh = NULL;
   if (!sh) {
     sh = objdup(shader_new(2,
@@ -518,7 +518,7 @@ shader *mod_get_shader(cam *c, m4f t, float d) {
     t_no_scale.v[i][0] = a.v[0], t_no_scale.v[i][1] = a.v[1], t_no_scale.v[i][2] = a.v[2];
   }
 
-  m4f proj = cam_get_proj(c), look = cam_get_look(c, d);
+  m4f proj = cam_get_proj(c), look = cam_get_look(c);
   shader_mat4(sh, "u_proj", proj);
   shader_mat4(sh, "u_look", look);
   shader_vec3(sh, "u_eye", c->pos);
@@ -529,7 +529,7 @@ shader *mod_get_shader(cam *c, m4f t, float d) {
   return sh;
 }
 
-void cam_rot(cam *c, float d) {
+void cam_rot(cam *c) {
   // ok how does this work?
   // we take the cosine of the yaw for x, that makes sense. then we multiply by
   //     the cosine of the pitch. this makes it project onto that vector.
@@ -537,8 +537,11 @@ void cam_rot(cam *c, float d) {
   // we take the sine of the yaw for z, and project it onto the pitch vector.
   // ok, now it all makes sense!
 
-  float yaw = cam_get_yaw(c, d);
-  float pitch = cam_get_pitch(c, d);
+  c->yaw = lerp(c->yaw, c->target_yaw, 0.5f);
+  c->pitch = lerp(c->pitch, c->target_pitch, 0.5f);
+
+  float yaw = c->yaw;
+  float pitch = c->pitch;
 
   v3f front = v3_normed((v3f){
     cosf(rad(yaw)) * cosf(rad(pitch)),
@@ -555,24 +558,11 @@ void cam_rot(cam *c, float d) {
   c->up = up;
 }
 
-v3f cam_get_pos(cam *c, float d) {
-  return v3_lerp(c->prev_pos, c->pos, d);
-}
-
-float cam_get_yaw(cam *c, float d) {
-  return lerp(c->prev_yaw, c->yaw, d);
-}
-
-float cam_get_pitch(cam *c, float d) {
-  return lerp(c->prev_pitch, c->pitch, d);
-}
-
 int *quad_indices(int w, int h) {
   int *inds = arr_new(int, w * h * 6);
 
   for (int i = 0; i < h; i++)
-    for (int j = 0; j < w; j++)
-    {
+    for (int j = 0; j < w; j++) {
       arr_add(&inds, &(int){i * (w + 1) + j});
       arr_add(&inds, &(int){(i + 1) * (w + 1) + j + 1});
       arr_add(&inds, &(int){(i + 1) * (w + 1) + j});
@@ -582,4 +572,85 @@ int *quad_indices(int w, int h) {
     }
 
   return inds;
+}
+
+void imod_opti_vao(vao *v, buf *model) {
+  gl_vertex_array_vertex_buffer(v->id, 1, model->id, 0, sizeof(m4f));
+  for (int i = 0; i < 4; i++) {
+    gl_enable_vertex_array_attrib(v->id, v->n_attrs + i);
+    gl_vertex_array_attrib_format(v->id, v->n_attrs + i, 4, GL_FLOAT, GL_FALSE, i * sizeof(v4f));
+    gl_vertex_array_attrib_binding(v->id, v->n_attrs + i, 1);
+  }
+
+  gl_vertex_array_binding_divisor(v->id, 1, 1);
+}
+
+static imod **all_imods = NULL;
+
+imod *imod_new(mod m) {
+  if (!all_imods) {
+    all_imods = arr_new(imod *, 4);
+  }
+
+  imod out = {
+    .meshes = m.meshes,
+    .n_meshes = m.n_meshes,
+    .n_texes = m.n_texes,
+    .texes = m.texes,
+    .model = arr_new(m4f, 4),
+    .model_buf = buf_new(GL_ARRAY_BUFFER),
+  };
+
+  for (int i = 0; i < m.n_meshes; i++) {
+    mesh *me = &m.meshes[i];
+    imod_opti_vao(&me->vao, &out.model_buf);
+  }
+
+  imod *p = objdup(out);
+
+  arr_add(&all_imods, &p);
+
+  return p;
+}
+
+void imod_draw(cam *c) {
+  if (!all_imods) return;
+
+  imod_get_sh(c);
+
+  for (imod **mp = all_imods, **end = arr_end(all_imods); mp != end; mp++) {
+    imod *m = *mp;
+    int count = arr_len(m->model);
+    if (!count) continue;
+
+    buf_data_n(&m->model_buf, GL_DYNAMIC_DRAW, sizeof(m4f), count, m->model);
+
+    for (int i = 0; i < m->n_meshes; i++) {
+      vao_bind(&m->meshes[i].vao);
+      gl_draw_elements_instanced(GL_TRIANGLES, m->meshes[i].n_inds, GL_UNSIGNED_INT, 0, count);
+    }
+
+    arr_clear(m->model);
+  }
+}
+
+void imod_add(imod *m, m4f t) {
+  m4f t_tpose = m4_tpose(&t);
+  arr_add(&m->model, &t_tpose);
+}
+
+shader *imod_get_sh(cam *c) {
+  static shader *sh = NULL;
+  if (!sh) {
+    sh = objdup(shader_new(2, (shader_spec[]){
+      GL_VERTEX_SHADER, "res/imod.vsh",
+      GL_FRAGMENT_SHADER, "res/mod_light.fsh"
+    }));
+  }
+
+  m4f proj = cam_get_proj(c), look = cam_get_look(c);
+  shader_mat4(sh, "u_proj", proj);
+  shader_mat4(sh, "u_look", look);
+  shader_vec3(sh, "u_eye", c->pos);
+  shader_bind(sh);
 }

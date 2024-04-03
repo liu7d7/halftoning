@@ -113,3 +113,24 @@ char *arr_get_sz(char *memory) {
   str[arr_len(memory)] = '\0';
   return str;
 }
+
+void arr_copy(void *_dst, void *src) {
+  void **dst = _dst;
+  arr_metadata dst_meta = *internal_arr_get_metadata(*dst);
+  arr_metadata src_meta = *internal_arr_get_metadata(src);
+  if (dst_meta.elem_size != src_meta.elem_size)
+    throw_c("arr_copy: incompatible arrays!");
+  if (dst_meta.len >= src_meta.len) {
+    memcpy(internal_arr_base_ptr(*dst),
+           internal_arr_base_ptr(src),
+           sizeof(arr_metadata) + src_meta.len * src_meta.elem_size) +
+    sizeof(arr_metadata);
+  } else {
+    arr_del(*dst);
+    (*dst) =
+      memcpy(malloc(sizeof(arr_metadata) + src_meta.len * src_meta.elem_size),
+             internal_arr_base_ptr(src),
+             sizeof(arr_metadata) + src_meta.len * src_meta.elem_size) +
+      sizeof(arr_metadata);
+  }
+}

@@ -1,10 +1,8 @@
 #include "obj.h"
 #include "typedefs.h"
 #include "err.h"
-#include "GLFW/glfw3.h"
 #include "arr.h"
 #include "box.h"
-#include <stdbool.h>
 #include <stddef.h>
 
 hit hit_b(obj *a, obj *b) {
@@ -223,7 +221,6 @@ hit hit_mc(obj *tmesh_obj, obj *cap_obj) {
     hit h = hit_tc(o, cap_obj);
 
     total = v3_add(total, v3_mul(h.norm, h.push));
-//    return h;
   }
 
   float push = v3_len(total);
@@ -256,7 +253,7 @@ hit obj_hit(obj *a, obj *b) {
     case ot_tri | ot_cap: return hit_tc(a, b);
     case ot_mesh | ot_ball: return hit_mb(a, b);
     case ot_mesh | ot_cap: return hit_mc(a, b);
-    case ot_tri: throw_c("two triangles may not collide!");
+    case ot_tri: throw_c("obj_hit: two triangles may not collide!");
   }
 }
 
@@ -264,13 +261,13 @@ v3f *obj_get_pos(obj *o) {
   switch (o->type) {
     case ot_ball: return &o->b.pos;
     case ot_cap: return &o->c.pos;
-    case ot_tri: throw_c("can't get pos of triangle");
+    case ot_tri: throw_c("obj_get_pos: can't get pos of triangle");
   }
 }
 
 void obj_move(obj *o, v3f d) {
   switch (o->type) {
-    case ot_tri: throw_c("Can't move a triangle!");
+    case ot_tri: throw_c("obj_move: can't move a triangle!");
     case ot_ball: o->b.pos = v3_add(o->b.pos, d);
       break;
     case ot_cap: o->c.pos = v3_add(o->c.pos, d);
@@ -279,32 +276,32 @@ void obj_move(obj *o, v3f d) {
 }
 
 void obj_draw(obj *o, cam *c, float d) {
-  static mod *ball = NULL, *cyl = NULL;
+  static imod *ball = NULL, *cyl = NULL;
   if (!ball) {
-    ball = objdup(mod_new("res/ball.obj"));
-    cyl = objdup(mod_new("res/cylinder.obj"));
+    ball = imod_new(mod_new("res/ball.obj"));
+    cyl = imod_new(mod_new("res/cylinder.obj"));
   }
 
   switch (o->type) {
     case ot_ball: {
       auto b = o->b;
       float r = o->b.rad;
-      mod_draw(ball, c, m4_mul(m4_scale(r, r, r),
-                               m4_trans_v(v3_lerp(b.prev_pos, b.pos, d))), d);
+      imod_add(ball, m4_mul(m4_scale(r, r, r),
+                               m4_trans_v(v3_lerp(b.prev_pos, b.pos, d))));
       break;
     }
     case ot_cap: {
       float r = o->c.rad;
-      mod_draw(cyl,
-               c,
+      imod_add(cyl,
                m4_mul(m4_scale(r, o->c.ext, r),
                       m4_mul(m4_chg_axis(o->c.norm, 1),
-                             m4_trans_v(v3_lerp(o->c.prev_pos, o->c.pos, d)))),
-               d);
-      mod_draw(ball, c, m4_mul(m4_scale(r, r, r), m4_trans_v(
-        v3_add(v3_lerp(o->c.prev_pos, o->c.pos, d), v3_mul(o->c.norm, o->c.ext)))), d);
-      mod_draw(ball, c, m4_mul(m4_scale(r, r, r), m4_trans_v(
-        v3_sub(v3_lerp(o->c.prev_pos, o->c.pos, d), v3_mul(o->c.norm, o->c.ext)))), d);
+                             m4_trans_v(v3_lerp(o->c.prev_pos, o->c.pos, d)))));
+      imod_add(ball, m4_mul(m4_scale(r, r, r), m4_trans_v(
+        v3_add(v3_lerp(o->c.prev_pos, o->c.pos, d),
+               v3_mul(o->c.norm, o->c.ext)))));
+      imod_add(ball, m4_mul(m4_scale(r, r, r), m4_trans_v(
+        v3_sub(v3_lerp(o->c.prev_pos, o->c.pos, d),
+               v3_mul(o->c.norm, o->c.ext)))));
       break;
     }
     default: return;
@@ -398,19 +395,20 @@ box3 obj_get_box(obj *o) {
     case ot_mesh: return o->m.box;
     case ot_ball:
       return (box3){.min = v3_add(o->b.pos,
-                                    (v3f){-o->b.rad, -o->b.rad,
-                                          -o->b.rad}), .max = v3_add(
+                                  (v3f){-o->b.rad, -o->b.rad,
+                                        -o->b.rad}), .max = v3_add(
         o->b.pos, (v3f){o->b.rad, o->b.rad, o->b.rad})};
     case ot_cap: {
       return box3_fit_2(obj_get_box(&(obj){.b = ball_new(v3_add(o->c.pos,
                                                                 v3_mul(
                                                                   o->c.norm,
                                                                   o->c.ext)),
-                                                         o->c.rad)}), obj_get_box(&(obj){.b = ball_new(v3_sub(o->c.pos,
-                                                                                                              v3_mul(
-                                                                                                                o->c.norm,
-                                                                                                                o->c.ext)),
-                                                                                                       o->c.rad)}));
+                                                         o->c.rad)}),
+                        obj_get_box(&(obj){.b = ball_new(v3_sub(o->c.pos,
+                                                                v3_mul(
+                                                                  o->c.norm,
+                                                                  o->c.ext)),
+                                                         o->c.rad)}));
     }
     case ot_tri: throw_c("obj_get_box: not implemented yet!");
   }

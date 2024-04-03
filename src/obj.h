@@ -51,6 +51,8 @@ typedef union obj {
   cap c;
   ball b;
   tmesh m;
+
+  float pad[16];
 } obj;
 
 typedef struct hit {

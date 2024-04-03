@@ -369,7 +369,7 @@ extern "C" {
  *  See [key input](@ref input_key) for how these are used.
  *
  *  These key codes are inspired by the _USB HID Usage Tables v1.12_ (p. 53-60),
- *  but re-arranged to map to 7-bit ASCII for printable keys (function keys are
+ *  but re-arranged to lin_map to 7-bit ASCII for printable keys (function keys are
  *  put in the 256+ range).
  *
  *  The naming of the key codes follow these rules:
@@ -4620,7 +4620,7 @@ GLFWAPI GLFWkeyfun glfw_set_key_callback(GLFWwindow* handle, GLFWkeyfun cbfun);
  *
  *  The character callback is intended for Unicode text input.  As it deals with
  *  characters, it is keyboard layout dependent, whereas the
- *  [key callback](@ref glfw_set_key_callback) is not.  Characters do not map 1:1
+ *  [key callback](@ref glfw_set_key_callback) is not.  Characters do not lin_map 1:1
  *  to physical keys, as a key may produce zero, one or more characters.  If you
  *  want to know whether a specific physical key was pressed or released, see
  *  the key callback instead.
@@ -4667,7 +4667,7 @@ glfw_set_char_callback(GLFWwindow* handle, GLFWcharfun cbfun);
  *  Unicode character input.  For regular Unicode text input, see the
  *  [character callback](@ref glfw_set_char_callback).  Like the character
  *  callback, the character with modifiers callback deals with characters and is
- *  keyboard layout dependent.  Characters do not map 1:1 to physical keys, as
+ *  keyboard layout dependent.  Characters do not lin_map 1:1 to physical keys, as
  *  a key may produce zero, one or more characters.  If you want to know whether
  *  a specific physical key was pressed or released, see the
  *  [key callback](@ref glfw_set_key_callback) instead.

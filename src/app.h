@@ -19,7 +19,7 @@ typedef struct app {
   fbo cmyk, cmyk2, main;
   world world;
   bool is_mouse_captured, is_rendering_halftone;
-  float dt, mspt;
+  float dt, mspt, mspb;
   font font;
   win win;
 
@@ -30,8 +30,6 @@ typedef struct app {
 app app_new(int width, int height, char const *name);
 
 void app_run(app *a);
-
-void app_tick(app *a);
 
 void app_cleanup(app *g);
 

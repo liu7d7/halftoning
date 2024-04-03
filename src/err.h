@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdio.h>
+#include <process.h>
 
 #define result_definition(name, T) \
 struct name { \

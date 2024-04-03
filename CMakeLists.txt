@@ -36,9 +36,14 @@ add_executable(wip main.c src/lib/glad/glad.c src/lib/glad/glad.h src/lib/glad/k
         src/box.c
         src/box.h
         src/stb_truetype.h
+        src/lmap.h
+        src/lmap.c
+        src/hash.h
 )
 
 find_package(assimp CONFIG REQUIRED)
+#find_package(PThreads4W REQUIRED)
+#target_link_libraries(wip PRIVATE PThreads4W::PThreads4W)
 target_link_libraries(wip PRIVATE glfw assimp::assimp)
 
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
@@ -49,5 +54,4 @@ set_target_properties(wip PROPERTIES LINK_SEARCH_END_STATIC 1)
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
 find_package(Threads REQUIRED)
-
 target_link_libraries(wip PRIVATE Threads::Threads)

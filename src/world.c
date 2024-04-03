@@ -1,6 +1,7 @@
 #include "world.h"
 #include "typedefs.h"
 #include "obj.h"
+#include "lmap.h"
 
 float chunk_get_y(v3f world_pos) {
   static fnl_state *noise = NULL;
@@ -74,19 +75,23 @@ chunk chunk_new(v2i pos) {
 
 world world_new() {
   world w = {
-    .chunks = map_new(16, sizeof(v2i), sizeof(chunk), 0.75f, iv2_eq, iv2_hash),
-    .objs = arr_new(obj, 4)
+    .chunks = lmap_new(16, sizeof(v2i), sizeof(chunk), 0.5f, iv2_eq, iv2_hash),
+    .objs_tick = arr_new(obj, 4),
+    .objs_draw = arr_new(obj, 4),
+    .render_lock = PTHREAD_MUTEX_INITIALIZER
   };
 
   for (int i = -world_draw_dist * 2; i <= world_draw_dist * 2; i++) {
     for (int j = -world_draw_dist * 2; j <= world_draw_dist * 2; j++) {
       chunk c = chunk_new((v2i){i, j});
-      map_add(&w.chunks, &(v2i){i, j}, &c);
+      lmap_add(&w.chunks, &(v2i){i, j}, &c);
     }
   }
 
   for (int i = 0; i < 64; i++) {
-    arr_add(&w.objs, &(obj){.c = cap_new((v3f){4.f * (i % 8), 30, 4.f * (i / 8)}, v3_uy, 0.5f, 3.f)});
+    arr_add(&w.objs_tick,
+            &(obj){.c = cap_new((v3f){4.f * (i % 16), 30, 4.f * (i / 16)},
+                                v3_uy, 0.5f, 3.f)});
   }
 
   for (int i = 0; i < world_sp_size; i++) {
@@ -120,7 +125,7 @@ void world_tick(world *w, cam *c) {
 
       v2i chunk_pos = {cam_pos.x + i, cam_pos.y + j};
 
-      chunk *ch = map_at(&w->chunks, &chunk_pos);
+      chunk *ch = lmap_at(&w->chunks, &chunk_pos);
       if (!ch) continue;
 
       reg *r =
@@ -131,7 +136,7 @@ void world_tick(world *w, cam *c) {
   }
 
   // handle all objects
-  for (obj *o = w->objs; o != (obj *)arr_end(w->objs); o++) {
+  for (obj *o = w->objs_tick; o != (obj *)arr_end(w->objs_tick); o++) {
     *obj_get_prev_pos(o) = *obj_get_pos(o);
     v2i obj_pos = world_get_chunk_pos(*obj_get_pos(o));
     v2i off = iv2_sub(obj_pos, cam_pos);
@@ -152,7 +157,7 @@ void world_tick(world *w, cam *c) {
   float const step_time = 1.f / (float)sub_steps;
 
   for (int t = 0; t < sub_steps; t++) {
-    for (obj *o = w->objs; o != arr_end(w->objs); o++) {
+    for (obj *o = w->objs_tick; o != arr_end(w->objs_tick); o++) {
       obj_tick(o, step_time);
     }
 
@@ -168,9 +173,10 @@ void world_tick(world *w, cam *c) {
 }
 
 void world_draw(world *w, cam *c, float d) {
+  pthread_mutex_lock(&w->render_lock);
   v2i cam_to_chunk = world_get_chunk_pos(c->pos);
 
-  (void)mod_get_shader(c, m4_ident, d);
+  mod_get_sh(c, m4_ident);
 
   int n_gen = 0;
   for (int i = -world_draw_dist; i <= world_draw_dist; i++) {
@@ -179,13 +185,13 @@ void world_draw(world *w, cam *c, float d) {
 
       v2i chunk_pos = {cam_to_chunk.x + i, cam_to_chunk.y + j};
 
-      if (!map_has(&w->chunks, &chunk_pos) && n_gen < 4) {
+      if (!lmap_has(&w->chunks, &chunk_pos) && n_gen < 16) {
         chunk gen = chunk_new(chunk_pos);
-        map_add(&w->chunks, &chunk_pos, &gen);
+        lmap_add(&w->chunks, &chunk_pos, &gen);
         n_gen++;
       }
 
-      chunk *ch = map_at(&w->chunks, &chunk_pos);
+      chunk *ch = lmap_at(&w->chunks, &chunk_pos);
       if (!ch) continue;
 
       vao_bind(&ch->vao);
@@ -193,16 +199,11 @@ void world_draw(world *w, cam *c, float d) {
     }
   }
 
-  for (int i = 0; i < world_sp_size; i++) {
-    for (int j = 0; j < world_sp_size; j++) {
-      reg *r = &w->regions[i][j];
-      for (obj **op = r->dyn; op != arr_end(r->dyn); op++) {
-        obj_draw(*op, c, d);
-      }
-
-      for (obj *o = r->sta; o != arr_end(r->sta); o++) {
-        obj_draw(o, c, d);
-      }
-    }
+  for (obj *o = w->objs_draw, *end = arr_end(w->objs_draw); o != end; o++) {
+    if (v3_dist((*obj_get_pos(o)), c->pos) >
+        world_draw_dist * chunk_size)
+      continue;
+    obj_draw(o, c, d);
   }
+  pthread_mutex_unlock(&w->render_lock);
 }

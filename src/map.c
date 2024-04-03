@@ -120,7 +120,7 @@ bool map_has(map *d, void *key) {
 map
 map_new(size_t initial_size, size_t key_size, size_t val_size,
         float load_factor,
-        bool (*eq)(void *, void *), size_t (*hash)(void *)) {
+        bool (*eq)(void *, void *), uint32_t (*hash)(void *)) {
   return (map){
     .keys = internal_arr_new(initial_size, key_size),
     .vals = internal_arr_new(initial_size, val_size),

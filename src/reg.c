@@ -21,8 +21,8 @@ void reg_tick(reg *r) {
     }
   }
 
-  for (obj **a = r->dyn, **a_end = arr_end(r->dyn); a != a_end - 1; a++) {
-    for (obj **b = a + 1, **b_end = arr_end(r->dyn); b != b_end; b++) {
+  for (obj **a = r->dyn, **end = arr_end(r->dyn); a != end - 1; a++) {
+    for (obj **b = a + 1; b != end; b++) {
       hit h = obj_hit(*a, *b);
       if (!h.is_hit) continue;
 

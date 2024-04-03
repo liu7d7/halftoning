@@ -8,15 +8,9 @@
 
 /*-- app --*/
 
-pthread_mutex_t lock;
-
 app app_new(int width, int height, const char *name) {
   if (!glfw_init()) {
     throw_c("Failed to initialize GLFW!");
-  }
-
-  if (pthread_mutex_init(&lock, NULL) != 0) {
-    throw_c("Failed to initialize lock!");
   }
 
   GLFWwindow *win;
@@ -63,7 +57,7 @@ app app_new(int width, int height, const char *name) {
     .dim = {(float)width, (float)height},
     .is_mouse_captured = true,
     .post = vao_new(&post_vbo, NULL, 1, (attrib[]){attr_2f}),
-    .cam = cam_new((v3f){0.f, -20.f, 0.f}, (v3f){0.f, 1.f, 0.f}, 225.f, -30.f,
+    .cam = cam_new((v3f){0.f, 20.f, 0.f}, (v3f){0.f, 1.f, 0.f}, 225.f, -30.f,
                    (float)width / (float)height),
     .main = fbo_new(2,
                     (fbo_spec[]){
@@ -106,9 +100,7 @@ void app_setup_user_ptr(app *g) {
   glfw_set_window_user_pointer(g->glfw_win, g);
 }
 
-void move_cam(app *a) {
-  a->cam.prev_pos = a->cam.pos;
-
+void move_cam(app *a, float dt) {
   float x = 0, y = 0, z = 0;
 
   if (!app_is_key_down(a, GLFW_KEY_LEFT_CONTROL)) {
@@ -135,35 +127,39 @@ void move_cam(app *a) {
     v3_norm(&delta);
   }
 
-  a->cam.pos = v3_add(a->cam.pos, delta);
-
-  cam_tick(&a->cam, a);
+  a->cam.pos = v3_add(a->cam.pos, v3_mul(delta, dt * 20.f));
 }
 
 void app_tick(app *a) {
   const float tick_len = 50.f; // 20 tps
-  static float last_frame = 0.f;
-  static float prev_time_ms = 0.f;
+  static float last_frame_in_ticks = -10000.f;
+  static float prev_time_ms = -100000.f;
 
   float time = (float)glfw_get_time() * 1000.f;
-  last_frame = (time - prev_time_ms) / tick_len;
+  if (prev_time_ms < 0.f) prev_time_ms = time;
+  last_frame_in_ticks =
+    (time - prev_time_ms) / tick_len; // # of ticks it took to update last time
   prev_time_ms = time;
-  a->dt += last_frame;
-  int i = (int)a->dt;
-  a->dt -= (float)i;
+  a->dt += last_frame_in_ticks; // last_frame_in_ticks number of ticks have passed, add that to delta time
+  int i = (int)a->dt; // number of whole ticks that have passed, tick them
 
+  auto t_start = (float)glfw_get_time();
   for (int j = 0; j < min(i, 10); j++) {
-    pthread_mutex_lock(&lock);
-    auto start = (float)glfw_get_time();
-    move_cam(a);
     world_tick(&a->world, &a->cam);
-    a->mspt = ((float)glfw_get_time() - start) * 1000;
-    pthread_mutex_unlock(&lock);
+    auto b_start = (float)glfw_get_time();
+    pthread_mutex_lock(&a->world.render_lock);
+    arr_copy(&a->world.objs_draw, a->world.objs_tick);
+    a->dt -= 1;
+    pthread_mutex_unlock(&a->world.render_lock);
+    a->mspb = ((float)glfw_get_time() - b_start) * 1000;
+  }
+
+  if (i) {
+    a->mspt = ((float)glfw_get_time() - t_start) * 1000;
   }
 }
 
 void *tick_runner(void *ap) {
-  Sleep(1500);
   app *a = ap;
   while (!glfw_window_should_close(a->glfw_win)) {
     app_tick(a);
@@ -182,22 +178,26 @@ void app_run(app *a) {
 
   gl_debug_message_callback(gl_error_callback, NULL);
   gl_enable(GL_DEBUG_OUTPUT);
-  gl_enable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+//  gl_enable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
   pthread_t thread;
   pthread_create(&thread, NULL, tick_runner, a);
 
+  double last_frame = 0;
+
   while (!glfw_window_should_close(a->glfw_win)) {
+    auto start = glfw_get_time();
+
     gl_enable(GL_DEPTH_TEST);
 
     // draw the scene
     fbo_bind(&a->main);
     gl_clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    pthread_mutex_lock(&lock);
-    cam_rot(&a->cam, a->dt);
+    move_cam(a, (float)(start - last_frame));
+    cam_rot(&a->cam);
     world_draw(&a->world, &a->cam, a->dt);
-    pthread_mutex_unlock(&lock);
+    imod_draw(&a->cam);
 
     if (a->is_rendering_halftone) {
       gl_disable(GL_BLEND);
@@ -268,11 +268,19 @@ void app_run(app *a) {
     gl_enable(GL_BLEND);
 
     char text_buf[128];
-    sprintf_s(text_buf, 128, "xyz: %f %f %f", a->cam.pos.x, a->cam.pos.y, a->cam.pos.z);
+    sprintf_s(text_buf, 128, "xyz: %f %f %f", a->cam.pos.x, a->cam.pos.y,
+              a->cam.pos.z);
     font_draw(&a->font, a, text_buf, (v2f){20, 20}, 0xffffffff, 1, 1.f);
-    sprintf_s(text_buf, 128, "mspt: %f", a->mspt);
-    font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size}, 0xffffffff, 1, 1.f);
+    sprintf_s(text_buf, 128, "msp(t/b/f): %f/%f/%lf", a->mspt, a->mspb,
+              (glfw_get_time() - start) * 1000);
+    font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size}, 0xffffffff,
+              1, 1.f);
+    sprintf_s(text_buf, 128, "world size: %zu/%zu", a->world.chunks.count,
+              a->world.chunks.cap);
+    font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 2},
+              0xffffffff, 1, 1.f);
 
+    last_frame = start;
     glfw_swap_buffers(a->glfw_win);
     glfw_poll_events();
   }
@@ -280,7 +288,6 @@ void app_run(app *a) {
 
 void app_cleanup(app *g) {
   glfw_destroy_window(g->glfw_win);
-  pthread_mutex_destroy(&lock);
 }
 
 bool app_is_key_down(app *g, int key) {
@@ -303,6 +310,7 @@ void framebuffer_size_callback(GLFWwindow *win, int width, int height) {
 void cursor_pos_callback(GLFWwindow *win, double xpos, double ypos) {
   app *k = glfw_get_window_user_pointer(win);
   k->mouse = (v2f){(float)xpos, (float)ypos};
+  cam_tick(&k->cam, k);
 }
 
 void
@@ -313,6 +321,7 @@ key_callback(GLFWwindow *win, int keycode, int scancode, int action, int mods) {
       if (action != GLFW_PRESS) break;
       glfw_set_input_mode(win, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
       g->is_mouse_captured = false;
+      g->cam.has_last = false;
       break;
     }
     case GLFW_KEY_H: {

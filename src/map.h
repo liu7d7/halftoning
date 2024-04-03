@@ -20,7 +20,7 @@ typedef struct map {
 
   bool (*eq)(void *lhs, void *rhs);
 
-  size_t (*hash)(void *key);
+  uint32_t (*hash)(void *key);
 } map;
 
 entry *internal_map_new_entries(size_t size);
@@ -28,7 +28,7 @@ entry *internal_map_new_entries(size_t size);
 map
 map_new(size_t initial_size, size_t key_size, size_t val_size,
         float load_factor,
-        bool(*eq)(void *, void *), size_t(*hash)(void *));
+        bool(*eq)(void *, void *), uint32_t(*hash)(void *));
 
 bool internal_map_entry_is_invalid(entry *entry);
 

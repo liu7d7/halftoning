@@ -1,14 +1,23 @@
 #pragma once
 
+#ifdef __GNUC__
 #include <stdint-gcc.h>
+#else
+#include <stdint.h>
+#endif
 #include <intrin.h>
 #include <stdbool.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 #include "err.h"
+#include "hash.h"
 
 typedef uint32_t uint;
 typedef uint8_t u8;
+#ifndef __GNUC__
+typedef int64_t ssize_t;
+#endif
 
 #define max(a, b) \
    ({ __typeof__ (a) _a = (a); \
@@ -58,7 +67,7 @@ static const v2f v2_ux = (v2f){.x = 1};
 static const v2f v2_uy = (v2f){.y = 1};
 static const v2f v2_zero = (v2f){0};
 
-[[gnu::always_inline]]
+
 
 inline static v2f v2_max(v2f lhs, v2f rhs) {
   return (v2f){max(lhs.x, rhs.x), max(lhs.y, rhs.y)};
@@ -547,13 +556,11 @@ inline static float clamp(float val, float least, float most) {
 [[gnu::always_inline]]
 
 inline static float rad(float deg) {
-  return deg * M_PI / 180.f;
+  return deg * 3.1415926f / 180.f;
 }
 
-static size_t iv2_hash(void *key) {
-  v2i *vec = key;
-
-  return ((size_t)vec->v[0] << 32) | ((size_t)vec->v[1]);
+static uint32_t iv2_hash(void *key) {
+  return hash_murmur3(key, sizeof(v2i));
 }
 
 static bool iv2_eq(void *_lhs, void *_rhs) {
@@ -561,4 +568,14 @@ static bool iv2_eq(void *_lhs, void *_rhs) {
   v2i *rhs = _rhs;
 
   return lhs->v[0] == rhs->v[0] && lhs->v[1] == rhs->v[1];
+}
+
+static uint32_t str_hash(void *key) {
+  char const **str = key;
+  return hash_murmur3(*str, strlen(*str));
+}
+
+static bool str_eq(void *_lhs, void *_rhs) {
+  char const **lhs = _lhs, **rhs = _rhs;
+  return strcmp(*lhs, *rhs) == 0;
 }

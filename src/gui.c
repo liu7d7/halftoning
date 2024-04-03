@@ -62,9 +62,11 @@ void draw_rect(app *a, v2f tl, v2f br, v4f color) {
 }
 
 void win_update_bounds(win *w, app *a) {
-  w->dim = v2_max(w->dim, (v2f){font_get_width(&a->font, w->title, 1) + 12, a->font.size + 12});
+  w->dim = v2_max(w->dim, (v2f){font_get_width(&a->font, w->title, 1) + 12,
+                                a->font.size + 12});
   w->bar = box2_new(w->pos, v2_add(w->pos, (v2f){w->dim.x, a->font.size + 12}));
-  w->rsz = box2_new(v2_sub(v2_add(w->pos, w->dim), (v2f){30, 30}), v2_sub(v2_add(w->pos, w->dim), (v2f){6, 6}));
+  w->rsz = box2_new(v2_sub(v2_add(w->pos, w->dim), (v2f){30, 30}),
+                    v2_sub(v2_add(w->pos, w->dim), (v2f){6, 6}));
 }
 
 void win_draw(win *w, app *a) {
@@ -74,8 +76,10 @@ void win_draw(win *w, app *a) {
   v4f const highlight = (v4f){1, 0, 1, 0.8f};
   draw_rect(a, w->pos, v2_add(w->pos, w->dim), bg_color);
   v4f rsz_color = box2_contains(w->rsz, a->mouse) ? highlight : bg_color;
-  draw_rect(a, v2_sub(v2_add(w->pos, w->dim), (v2f){30, 30}), v2_sub(v2_add(w->pos, w->dim), (v2f){6, 6}), rsz_color);
-  font_draw(&a->font, a, w->title, v2_add(w->pos, (v2f){6, 6}), 0xffffffff, 1, 1.f);
+  draw_rect(a, v2_sub(v2_add(w->pos, w->dim), (v2f){30, 30}),
+            v2_sub(v2_add(w->pos, w->dim), (v2f){6, 6}), rsz_color);
+  font_draw(&a->font, a, w->title, v2_add(w->pos, (v2f){6, 6}), 0xffffffff, 1,
+            1.f);
 }
 
 int win_click(win *w, v2f pos) {
