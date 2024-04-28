@@ -2,6 +2,7 @@
 #include "err.h"
 #include "app.h"
 #include "arr.h"
+#include "pal.h"
 
 cam
 cam_new(v3f pos, v3f world_up, float yaw, float pitch, float aspect) {
@@ -21,9 +22,9 @@ cam_new(v3f pos, v3f world_up, float yaw, float pitch, float aspect) {
   return c;
 }
 
-void cam_tick(cam *c, app *g) {
-  if (c->has_last && g->is_mouse_captured) {
-    v2f delta = v2_sub(g->mouse, c->last_mouse_pos);
+void cam_tick(cam *c, app *a) {
+  if (c->has_last && a->is_mouse_captured) {
+    v2f delta = v2_sub(a->mouse, c->last_mouse_pos);
     c->target_yaw += delta.x;
     c->target_pitch -= delta.y;
 
@@ -31,14 +32,14 @@ void cam_tick(cam *c, app *g) {
     if (c->target_pitch < -89.9f) c->target_pitch = -89.9f;
   }
 
-  if (g->is_mouse_captured) {
+  if (a->is_mouse_captured) {
     c->has_last = true;
-    c->last_mouse_pos = g->mouse;
+    c->last_mouse_pos = a->mouse;
   }
 }
 
 m4f cam_get_look(cam *c) {
-  return m4_look(c->pos, c->front, c->up);
+  return m4_look(v3_sub(c->pos, v3_mul(c->front, 10.f)), c->front, c->up);
 }
 
 m4f cam_get_proj(cam *c) {
@@ -189,6 +190,11 @@ void shader_vec2(shader *s, char const *n, v2f m) {
 void shader_vec3(shader *s, char const *n, v3f m) {
   shader_bind(s);
   gl_uniform_3f(gl_get_uniform_location(s->id, n), m.x, m.y, m.z);
+}
+
+void shader_vec3_v(shader *s, char const *n, v3f *m, int amt) {
+  shader_bind(s);
+  gl_uniform_3fv(gl_get_uniform_location(s->id, n), amt, (float *)m);
 }
 
 void shader_vec4(shader *s, char const *n, v4f m) {
@@ -410,25 +416,36 @@ void blur_up(shader *s, blur args) {
   shader_vec2(s, "u_scr_size", args.scr_size);
 }
 
+void dither_up(shader *s, dither args) {
+  shader_bind(s);
+  tex_bind(args.tex, args.unit);
+  shader_int(s, "u_tex0", args.unit);
+  shader_vec3_v(s, "u_pal", args.pal, args.pal_size);
+  shader_int(s, "u_pal_size", args.pal_size);
+}
+
 mesh
-mod_load_mesh(mod *m, struct aiMesh *mesh, const struct aiScene *scene) {
-  mod_vtx *vtxs = malloc(sizeof(mod_vtx) * mesh->mNumVertices);
+mod_load_mesh(mod *m, lmap *mats, struct aiMesh *mesh, const struct aiScene *scene) {
+  obj_vtx *vtxs = malloc(sizeof(obj_vtx) * mesh->mNumVertices);
+
+  char *name = mesh->mName.data;
+  mtl *mat = lmap_at(mats, &name);
+  if (!mat) {
+    fprintf(stderr, "problem! %s in ", mesh->mName.data);
+    throw_c("mod_load_mesh: failed to find material in map!");
+  }
 
   for (int i = 0; i < mesh->mNumVertices; i++) {
     v3f pos = *(v3f *)&mesh->mVertices[i], norm = *(v3f *)&mesh->mNormals[i];
-    v2f uvs = {0};
-    if (mesh->mTextureCoords[0]) {
-      uvs = *(v2f *)&mesh->mTextureCoords[0][i];
-    }
 
-    vtxs[i] = (mod_vtx){pos, norm, uvs};
+    vtxs[i] = (obj_vtx){pos, norm};
   }
 
   buf vbo = buf_new(GL_ARRAY_BUFFER), ibo = buf_new(GL_ELEMENT_ARRAY_BUFFER);
 
   buf_data_n(&vbo,
              GL_DYNAMIC_DRAW,
-             sizeof(mod_vtx),
+             sizeof(obj_vtx),
              mesh->mNumVertices,
              vtxs);
 
@@ -449,8 +466,9 @@ mod_load_mesh(mod *m, struct aiMesh *mesh, const struct aiScene *scene) {
     .vtxs = vtxs,
     .n_vtxs = (int)mesh->mNumVertices,
     .n_inds = arr_len(inds),
-    .vao = vao_new(&vbo, &ibo, 3,
-                   (attrib[]){attr_3f, attr_3f, attr_2f})
+    .vao = vao_new(&vbo, &ibo, 2,
+                   (attrib[]){attr_3f, attr_3f}),
+    .mat = *mat
   };
 
   arr_del(inds);
@@ -458,15 +476,54 @@ mod_load_mesh(mod *m, struct aiMesh *mesh, const struct aiScene *scene) {
   return me;
 }
 
-void mod_load(mod *m, struct aiNode *node, const struct aiScene *scene) {
+void mod_load(mod *m, lmap *mats, struct aiNode *node, const struct aiScene *scene) {
   for (int i = 0; i < node->mNumMeshes; i++) {
     struct aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-    m->meshes[m->n_meshes++] = mod_load_mesh(m, mesh, scene);
+    m->meshes[m->n_meshes++] = mod_load_mesh(m, mats, mesh, scene);
   }
 
   for (int i = 0; i < node->mNumChildren; i++) {
-    mod_load(m, node->mChildren[i], scene);
+    mod_load(m, mats, node->mChildren[i], scene);
   }
+}
+
+lmap mod_load_mtl(char const *path) {
+  ssize_t path_len = strlen(path);
+  ssize_t last_dot_idx = path_len - 1;
+  for (; last_dot_idx >= 0 && path[last_dot_idx] != '.'; last_dot_idx--) {}
+
+  char mtl_path[384];
+  memcpy(mtl_path, path, last_dot_idx);
+  char const ext[] = ".mtl.txt";
+  for (ssize_t i = last_dot_idx; i < last_dot_idx + sizeof(ext); i++) {
+    mtl_path[i] = ext[i - last_dot_idx];
+  }
+
+  FILE *f = fopen(mtl_path, "r");
+  if (!f) {
+    fprintf(stderr, "problem! %s in ", mtl_path);
+    throw_c("mod_load_mtl: failed to load material file!");
+  }
+
+  auto mats = lmap_new(4, sizeof(char *), sizeof(mtl), 0.75f, str_eq, str_hash);
+  char line[256];
+  char name[64];
+  while (fgets(line, 256, f)) {
+    mtl mat;
+    int r = sscanf(line, "%63s %u %u %f %f %f %f %d", name, &mat.dark, &mat.light, &mat.light_model.x, &mat.light_model.y, &mat.light_model.z, &mat.shine, &mat.cull);
+    if (r < 8) {
+      fprintf(stderr, "problem! %s in ", line);
+      throw_c("mod_load_mtl: failed to parse mtl!");
+    }
+    size_t name_size = strlen(name) + 1;
+    char *heap_name = malloc(name_size);
+    strcpy_s(heap_name, name_size, name);
+    lmap_add(&mats, &heap_name, &mat);
+  }
+
+  fclose(f);
+
+  return mats;
 }
 
 mod mod_new(const char *path) {
@@ -475,6 +532,7 @@ mod mod_new(const char *path) {
                  aiProcess_CalcTangentSpace
                  | aiProcess_Triangulate
                  | aiProcess_JoinIdenticalVertices);
+
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
       !scene->mRootNode) {
     throw_c(aiGetErrorString());
@@ -484,7 +542,34 @@ mod mod_new(const char *path) {
     .meshes = malloc(sizeof(mesh) * scene->mNumMeshes)
   };
 
-  mod_load(&m, scene->mRootNode, scene);
+  lmap mats = mod_load_mtl(path);
+
+  mod_load(&m, &mats, scene->mRootNode, scene);
+
+  aiReleaseImport(scene);
+
+  return m;
+}
+
+mod mod_new_mem(const char *mem, size_t len, const char *path) {
+  struct aiScene const *scene =
+    aiImportFileFromMemory(mem, len,
+                 aiProcess_CalcTangentSpace
+                 | aiProcess_Triangulate
+                 | aiProcess_JoinIdenticalVertices, "obj");
+
+  if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
+      !scene->mRootNode) {
+    throw_c(aiGetErrorString());
+  }
+
+  mod m = {
+    .meshes = malloc(sizeof(mesh) * scene->mNumMeshes)
+  };
+
+  lmap mats = mod_load_mtl(path);
+
+  mod_load(&m, &mats, scene->mRootNode, scene);
 
   aiReleaseImport(scene);
 
@@ -493,14 +578,17 @@ mod mod_new(const char *path) {
 
 void mod_draw(mod *m, cam *c, m4f t) {
   for (int i = 0; i < m->n_meshes; i++) {
-    (void)mod_get_sh(c, t);
+    mod_get_sh(c, m->meshes[i].mat, t);
+    (m->meshes[i].mat.cull ? gl_enable : gl_disable)(GL_CULL_FACE);
 
     vao_bind(&m->meshes[i].vao);
     gl_draw_elements(GL_TRIANGLES, m->meshes[i].n_inds, GL_UNSIGNED_INT, 0);
   }
+
+  gl_disable(GL_CULL_FACE);
 }
 
-shader *mod_get_sh(cam *c, m4f t) {
+shader *mod_get_sh(cam *c, mtl m, m4f t) {
   static shader *sh = NULL;
   if (!sh) {
     sh = objdup(shader_new(2,
@@ -522,6 +610,10 @@ shader *mod_get_sh(cam *c, m4f t) {
   shader_mat4(sh, "u_proj", proj);
   shader_mat4(sh, "u_look", look);
   shader_vec3(sh, "u_eye", c->pos);
+  shader_vec3(sh, "u_light_model", m.light_model);
+  shader_vec3(sh, "u_light", dreamy_haze[m.light]);
+  shader_vec3(sh, "u_dark", dreamy_haze[m.dark]);
+  shader_float(sh, "u_shine", m.shine);
   shader_mat4(sh, "u_model", t);
   shader_mat4(sh, "u_model_no_scale", t_no_scale);
   shader_bind(sh);
@@ -559,16 +651,16 @@ void cam_rot(cam *c) {
 }
 
 int *quad_indices(int w, int h) {
-  int *inds = arr_new(int, w * h * 6);
+  int *inds = arr_new(int, (w - 1) * (h - 1) * 6);
 
-  for (int i = 0; i < h; i++)
-    for (int j = 0; j < w; j++) {
-      arr_add(&inds, &(int){i * (w + 1) + j});
-      arr_add(&inds, &(int){(i + 1) * (w + 1) + j + 1});
-      arr_add(&inds, &(int){(i + 1) * (w + 1) + j});
-      arr_add(&inds, &(int){i * (w + 1) + j});
-      arr_add(&inds, &(int){i * (w + 1) + j + 1});
-      arr_add(&inds, &(int){(i + 1) * (w + 1) + j + 1});
+  for (int i = 0; i < h - 1; i++)
+    for (int j = 0; j < w - 1; j++) {
+      arr_add(&inds, &(int){(i + 1) * w + j + 1});
+      arr_add(&inds, &(int){(i + 1) * w + j});
+      arr_add(&inds, &(int){i * w + j});
+      arr_add(&inds, &(int){i * w + j});
+      arr_add(&inds, &(int){i * w + j + 1});
+      arr_add(&inds, &(int){(i + 1) * w + j + 1});
     }
 
   return inds;
@@ -616,8 +708,6 @@ imod *imod_new(mod m) {
 void imod_draw(cam *c) {
   if (!all_imods) return;
 
-  imod_get_sh(c);
-
   for (imod **mp = all_imods, **end = arr_end(all_imods); mp != end; mp++) {
     imod *m = *mp;
     int count = arr_len(m->model);
@@ -626,12 +716,17 @@ void imod_draw(cam *c) {
     buf_data_n(&m->model_buf, GL_DYNAMIC_DRAW, sizeof(m4f), count, m->model);
 
     for (int i = 0; i < m->n_meshes; i++) {
+      imod_get_sh(c, m->meshes[i].mat);
+      (m->meshes[i].mat.cull ? gl_enable : gl_disable)(GL_CULL_FACE);
+
       vao_bind(&m->meshes[i].vao);
       gl_draw_elements_instanced(GL_TRIANGLES, m->meshes[i].n_inds, GL_UNSIGNED_INT, 0, count);
     }
 
     arr_clear(m->model);
   }
+
+  gl_disable(GL_CULL_FACE);
 }
 
 void imod_add(imod *m, m4f t) {
@@ -639,7 +734,7 @@ void imod_add(imod *m, m4f t) {
   arr_add(&m->model, &t_tpose);
 }
 
-shader *imod_get_sh(cam *c) {
+shader *imod_get_sh(cam *c, mtl m) {
   static shader *sh = NULL;
   if (!sh) {
     sh = objdup(shader_new(2, (shader_spec[]){
@@ -652,5 +747,17 @@ shader *imod_get_sh(cam *c) {
   shader_mat4(sh, "u_proj", proj);
   shader_mat4(sh, "u_look", look);
   shader_vec3(sh, "u_eye", c->pos);
+  shader_vec3(sh, "u_light_model", m.light_model);
+  shader_vec3(sh, "u_light", dreamy_haze[m.light]);
+  shader_vec3(sh, "u_dark", dreamy_haze[m.dark]);
+  shader_float(sh, "u_shine", m.shine);
   shader_bind(sh);
+}
+
+void crt_up(shader *s, crt args) {
+  shader_bind(s);
+  tex_bind(args.tex, args.unit);
+  shader_int(s, "u_tex0", args.unit);
+  shader_float(s, "u_aspect", args.aspect);
+  shader_float(s, "u_lores", args.lores);
 }

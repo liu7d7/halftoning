@@ -21,7 +21,7 @@ typedef struct cam {
 
 cam cam_new(v3f pos, v3f world_up, float yaw, float pitch, float aspect);
 
-void cam_tick(cam *c, struct app *g);
+void cam_tick(cam *c, struct app *a);
 
 void cam_rot(cam *c);
 
@@ -51,6 +51,8 @@ void shader_float(shader *s, char const *n, float m);
 void shader_vec2(shader *s, char const *n, v2f m);
 
 void shader_vec3(shader *s, char const *n, v3f m);
+
+void shader_vec3_v(shader *s, char const *n, v3f *m, int amt);
 
 void shader_vec4(shader *s, char const *n, v4f m);
 
@@ -198,6 +200,17 @@ typedef struct blit {
 
 void blit_up(shader *s, blit args);
 
+typedef struct crt {
+  // non owning!
+  tex *tex;
+  int unit;
+
+  float aspect;
+  float lores;
+} crt;
+
+void crt_up(shader *s, crt args);
+
 typedef struct blur {
   // non owning!
   tex *tex;
@@ -208,18 +221,36 @@ typedef struct blur {
 
 void blur_up(shader *s, blur args);
 
+typedef struct dither {
+  // non owning!
+  tex *tex;
+  int unit;
+
+  v3f *pal;
+  int pal_size;
+} dither;
+
+void dither_up(shader *s, dither args);
+
 #define mod_max_bone_influence 4
 
-typedef struct mod_vtx {
+typedef struct obj_vtx {
   v3f pos;
   v3f norm;
-  v2f uvs;
-} mod_vtx;
+} obj_vtx;
+
+typedef struct mtl {
+  uint light, dark;
+  v3f light_model; // ambient, diffuse, specular
+  float shine;
+  int cull;
+} mtl;
 
 typedef struct mesh {
-  mod_vtx *vtxs;
+  obj_vtx *vtxs;
   int n_vtxs;
   int n_inds;
+  mtl mat;
 
   vao vao;
 } mesh;
@@ -232,13 +263,11 @@ typedef struct mod {
   int n_meshes;
 } mod;
 
-shader *mod_get_sh(cam *c, m4f t);
-
-mesh mod_load_mesh(mod *m, struct aiMesh *mesh, struct aiScene const *scene);
-
-void mod_load(mod *m, struct aiNode *node, struct aiScene const *scene);
+shader *mod_get_sh(cam *c, mtl m, m4f t);
 
 mod mod_new(char const *path);
+
+mod mod_new_mem(const char *mem, size_t len, const char *path);
 
 void mod_draw(mod *m, cam *c, m4f t);
 
@@ -254,7 +283,7 @@ typedef struct imod {
 } imod;
 
 imod *imod_new(mod m);
-shader *imod_get_sh(cam *c);
+shader *imod_get_sh(cam *c, mtl m);
 void imod_draw(cam *c);
 void imod_add(imod *m, m4f trans);
 

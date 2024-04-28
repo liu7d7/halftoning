@@ -13,19 +13,22 @@
 typedef struct app {
   v2f dim;
   v2f mouse;
-  struct vao post;
-  shader to_cmyk, dots, blur, blit;
+  vao post;
+  shader dither, blit, crt;
   cam cam;
-  fbo cmyk, cmyk2, main;
-  world world;
+  fbo low_res, low_res_2, main;
+  world *world;
   bool is_mouse_captured, is_rendering_halftone;
-  float dt, mspt, mspb;
+  float dt, mspt;
   font font;
   win win;
+  int player;
 
   // owning!
   GLFWwindow *glfw_win;
 } app;
+
+extern app the_app;
 
 app app_new(int width, int height, char const *name);
 

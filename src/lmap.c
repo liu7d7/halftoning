@@ -38,8 +38,7 @@ void lmap_add_idx(lmap *l, size_t idx) {
          !l->eq(key, l->keys + l->idx[entry_idx] * l->key_size)) {
 //    entry_idx += i * i;
 //    i++;
-    entry_idx++;
-    entry_idx %= l->cap;
+    entry_idx = (entry_idx + 1 == l->cap ? 0: entry_idx + 1);
   }
 
   l->idx[entry_idx] = idx;
@@ -88,8 +87,7 @@ void *lmap_at(lmap *l, void *key) {
          !l->eq(key, l->keys + l->idx[entry_idx] * l->key_size)) {
 //    entry_idx += i * i;
 //    i++;
-    entry_idx++;
-    entry_idx %= l->cap;
+    entry_idx = (entry_idx + 1 == l->cap ? 0: entry_idx + 1);
   }
 
   if (idx_is_invalid(l->idx[entry_idx])) return NULL;

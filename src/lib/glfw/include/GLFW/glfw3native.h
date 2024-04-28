@@ -2,8 +2,8 @@
  * GLFW 3.3 - www.glfw.org
  * A library for OpenGL, window and input
  *------------------------------------------------------------------------
- * Copyright (c) 2002-2006 Marcus Geelnard
- * Copyright (c) 2006-2018 Camilla Löwy <elmindreda@glfw.org>
+ * Copyright (cap) 2002-2006 Marcus Geelnard
+ * Copyright (cap) 2006-2018 Camilla Löwy <elmindreda@glfw.org>
  *
  * This software is provided 'as-is', without any express or implied
  * warranty. In no event will the authors be held liable for any damages

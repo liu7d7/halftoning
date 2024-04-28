@@ -25,9 +25,9 @@ add_executable(wip main.c src/lib/glad/glad.c src/lib/glad/glad.h src/lib/glad/k
         src/world.c
         src/reg.c
         src/reg.h
-        src/obj.c
-        src/obj.h
-        src/obj.h
+        src/body.c
+        src/body.h
+        src/body.h
         src/gui.c
         src/gui.h
         src/font.c
@@ -39,6 +39,12 @@ add_executable(wip main.c src/lib/glad/glad.c src/lib/glad/glad.h src/lib/glad/k
         src/lmap.h
         src/lmap.c
         src/hash.h
+        src/pal.h
+        src/chunk.h
+        src/chunk.c
+        src/obj.h
+        src/obj.c
+        src/hana.h
 )
 
 find_package(assimp CONFIG REQUIRED)
@@ -52,6 +58,6 @@ set_property(TARGET wip PROPERTY CXX_STANDARD 11)
 set_target_properties(wip PROPERTIES LINK_SEARCH_START_STATIC 1)
 set_target_properties(wip PROPERTIES LINK_SEARCH_END_STATIC 1)
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -Ofast")
 find_package(Threads REQUIRED)
 target_link_libraries(wip PRIVATE Threads::Threads)

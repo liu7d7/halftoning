@@ -1,10 +1,13 @@
 #pragma once
 
 #ifdef __GNUC__
+
 #include <stdint-gcc.h>
+
 #else
 #include <stdint.h>
 #endif
+
 #include <intrin.h>
 #include <stdbool.h>
 #include <math.h>
@@ -31,8 +34,10 @@ typedef int64_t ssize_t;
 
 #define objdup(...) \
   ({ __typeof__ (__VA_ARGS__) _a = (__VA_ARGS__); \
-     memcpy(malloc(sizeof(_a)), &_a, sizeof(_a));\
+     (__typeof__ (__VA_ARGS__) *)memcpy(malloc(sizeof(_a)), &_a, sizeof(_a));\
   })
+
+#define M_PIF 3.1415926f
 
 static u8 *read_bin_file(char const *path) {
   FILE *f = fopen(path, "rb");
@@ -55,6 +60,33 @@ static u8 *read_bin_file(char const *path) {
   return buf;
 }
 
+static u8 *read_txt_file_len(char const *path, size_t *len) {
+  FILE *file = fopen(path, "r");
+  u8 *result = 0;
+  if (!file) {
+    throw_c("read_txt_file: failed to read text file at path!");
+  }
+
+  size_t file_size = 0;
+  fseek(file, 0L, SEEK_END);
+  file_size = (size_t)ftell(file);
+  fseek(file, 0L, SEEK_SET);
+  result = (u8 *)calloc(file_size + 1, sizeof(u8));
+  if (!fread(result, sizeof(u8), file_size, file)) {
+    throw_c("read_txt_file: failed to read from text file!");
+  }
+
+  result[file_size] = '\0';
+  fclose(file);
+
+  if (len) *len = file_size;
+  return result;
+}
+
+static u8 *read_txt_file(char const *path) {
+  return read_txt_file_len(path, NULL);
+}
+
 typedef union v2f {
   struct {
     float x, y;
@@ -66,7 +98,7 @@ typedef union v2f {
 static const v2f v2_ux = (v2f){.x = 1};
 static const v2f v2_uy = (v2f){.y = 1};
 static const v2f v2_zero = (v2f){0};
-
+static const v2f v2_one = (v2f){1, 1};
 
 
 inline static v2f v2_max(v2f lhs, v2f rhs) {
@@ -208,6 +240,15 @@ static const v3f v3_ux = (v3f){.x = 1};
 static const v3f v3_uy = (v3f){.y = 1};
 static const v3f v3_uz = (v3f){.z = 1};
 static const v3f v3_zero = (v3f){0};
+static const v3f v3_one = (v3f){1, 1, 1};
+
+[[gnu::always_inline]]
+
+inline static void v3_inc(v3f *lhs, v3f rhs) {
+  lhs->x += rhs.x;
+  lhs->y += rhs.y;
+  lhs->z += rhs.z;
+}
 
 [[gnu::always_inline]]
 
@@ -251,6 +292,12 @@ inline static v3f v3_mul(v3f lhs, float scalar) {
 
 [[gnu::always_inline]]
 
+inline static v3f v3_mul_v(v3f lhs, v3f rhs) {
+  return (v3f){lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z};
+}
+
+[[gnu::always_inline]]
+
 inline static v3f v3_div(v3f lhs, float scalar) {
   return (v3f){lhs.x / scalar, lhs.y / scalar, lhs.z / scalar};
 }
@@ -274,6 +321,12 @@ inline static float v3_dot(v3f lhs, v3f rhs) {
 
 inline static float v3_len(v3f v) {
   return sqrtf(v3_dot(v, v));
+}
+
+[[gnu::always_inline]]
+
+inline static float v3_angle(v3f lhs, v3f rhs) {
+  return acosf(v3_dot(lhs, rhs) / v3_len(lhs) / v3_len(rhs));
 }
 
 [[gnu::always_inline]]
@@ -541,6 +594,17 @@ m4_ortho(float left, float right, float bottom, float top, float z_near,
   return out;
 }
 
+static m4f m4_rot_y(float rad) {
+  float c = cosf(rad), s = sinf(rad);
+  m4f out = m4_ident;
+  out.r[0].x = c;
+  out.r[0].z = -s;
+  out.r[2].x = s;
+  out.r[2].z = c;
+
+  return out;
+}
+
 [[gnu::always_inline]]
 
 inline static float lerp(float start, float end, float delta) {
@@ -564,10 +628,14 @@ static uint32_t iv2_hash(void *key) {
 }
 
 static bool iv2_eq(void *_lhs, void *_rhs) {
-  v2i *lhs = _lhs;
-  v2i *rhs = _rhs;
+  return memcmp(_lhs, _rhs, sizeof(v2i)) == 0;
+}
 
-  return lhs->v[0] == rhs->v[0] && lhs->v[1] == rhs->v[1];
+static float rad_wrap(float x) {
+  x = fmodf(x + M_PIF, M_PIF * 2);
+  if (x < 0)
+    x += M_PIF * 2;
+  return x - M_PIF;
 }
 
 static uint32_t str_hash(void *key) {

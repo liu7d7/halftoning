@@ -81,6 +81,8 @@ void arr_add_bulk(void *thing, void *src) {
     throw_c("Mismatched element sizes in arr_add_bulk!");
   }
 
+  if (src_meta->count == 0) return;
+
   size_t new_count = dst_meta->count + src_meta->count;
   if (new_count > dst_meta->len) {
     size_t next = (size_t)pow(2, ceil(log2((double)new_count)));
@@ -88,6 +90,7 @@ void arr_add_bulk(void *thing, void *src) {
     void *new_memory = realloc(internal_arr_base_ptr(*dst),
                                sizeof(arr_metadata) +
                                next * dst_meta->elem_size);
+    ((arr_metadata *)new_memory)->len = next;
     *dst = new_memory + sizeof(arr_metadata);
 
     dst_meta = internal_arr_get_metadata(*dst);
@@ -118,13 +121,18 @@ void arr_copy(void *_dst, void *src) {
   void **dst = _dst;
   arr_metadata dst_meta = *internal_arr_get_metadata(*dst);
   arr_metadata src_meta = *internal_arr_get_metadata(src);
-  if (dst_meta.elem_size != src_meta.elem_size)
+  if (dst_meta.elem_size != src_meta.elem_size) {
     throw_c("arr_copy: incompatible arrays!");
+  }
+
+  if (src_meta.count == 0) {
+    return;
+  }
+
   if (dst_meta.len >= src_meta.len) {
     memcpy(internal_arr_base_ptr(*dst),
            internal_arr_base_ptr(src),
-           sizeof(arr_metadata) + src_meta.len * src_meta.elem_size) +
-    sizeof(arr_metadata);
+           sizeof(arr_metadata) + src_meta.len * src_meta.elem_size);
   } else {
     arr_del(*dst);
     (*dst) =

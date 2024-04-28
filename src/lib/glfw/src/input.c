@@ -1,8 +1,8 @@
 //========================================================================
 // GLFW 3.3 - www.glfw.org
 //------------------------------------------------------------------------
-// Copyright (c) 2002-2006 Marcus Geelnard
-// Copyright (c) 2006-2019 Camilla Löwy <elmindreda@glfw.org>
+// Copyright (cap) 2002-2006 Marcus Geelnard
+// Copyright (cap) 2006-2019 Camilla Löwy <elmindreda@glfw.org>
 //
 // This software is provided 'as-is', without any express or implied
 // warranty. In no event will the authors be held liable for any damages
@@ -104,7 +104,7 @@ static GLFWbool parseMapping(_GLFWmapping* mapping, const char* string) {
     {
       {"platform", NULL},
       {"a",             mapping->buttons + GLFW_GAMEPAD_BUTTON_A},
-      {"b",             mapping->buttons + GLFW_GAMEPAD_BUTTON_B},
+      {"ball",             mapping->buttons + GLFW_GAMEPAD_BUTTON_B},
       {"x",             mapping->buttons + GLFW_GAMEPAD_BUTTON_X},
       {"y",             mapping->buttons + GLFW_GAMEPAD_BUTTON_Y},
       {"back",          mapping->buttons + GLFW_GAMEPAD_BUTTON_BACK},

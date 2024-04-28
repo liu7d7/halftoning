@@ -1,104 +1,35 @@
 #include "world.h"
 #include "typedefs.h"
-#include "obj.h"
+#include "body.h"
 #include "lmap.h"
 
-float chunk_get_y(v3f world_pos) {
-  static fnl_state *noise = NULL;
-  if (!noise) {
-    fnl_state s = fnlCreateState();
-    noise = memcpy(malloc(sizeof(s)), &s, sizeof(s));
-    noise->noise_type = FNL_NOISE_OPENSIMPLEX2S;
-  }
-
-  return fnlGetNoise2D(noise, world_pos.x * 12, world_pos.z * 12) * 1.5f +
-         fnlGetNoise2D(noise, world_pos.x, world_pos.z) * 8.5f;
-}
-
-v3f chunk_get_pos(v2i pos, int off_x, int off_z) {
-  v3f base = {
-    (float)pos.x * (float)chunk_size + (float)off_x * chunk_ratio,
-    0,
-    (float)pos.y * (float)chunk_size + (float)off_z * chunk_ratio
-  };
-
-  base.y = chunk_get_y(base);
-  return base;
-}
-
-chunk chunk_new(v2i pos) {
-  chunk_vtx *verts = arr_new(chunk_vtx, 4);
-  tri *tris = arr_new(tri, 4);
-
-  for (int i = 0; i < chunk_len; i++) {
-    for (int j = 0; j < chunk_len; j++) {
-      v3f
-        a = chunk_get_pos(pos, i, j),
-        b = chunk_get_pos(pos, i, j + 1),
-        c = chunk_get_pos(pos, i + 1, j + 1),
-        d = chunk_get_pos(pos, i + 1, j);
-
-      v3f n_abc = v3_normed(v3_cross(v3_sub(b, a), v3_sub(c, a)));
-      v3f n_acd = v3_normed(v3_cross(v3_sub(c, a), v3_sub(d, a)));
-
-      arr_add(&verts, &(chunk_vtx){.pos = a, .norm = n_abc});
-      arr_add(&verts, &(chunk_vtx){.pos = b, .norm = n_abc});
-      arr_add(&verts, &(chunk_vtx){.pos = c, .norm = n_abc});
-
-      tri t = tri_new(a, b, c, n_abc, 0);
-      arr_add(&tris, &t);
-
-      arr_add(&verts, &(chunk_vtx){.pos = a, .norm = n_acd});
-      arr_add(&verts, &(chunk_vtx){.pos = c, .norm = n_acd});
-      arr_add(&verts, &(chunk_vtx){.pos = d, .norm = n_acd});
-
-      t = tri_new(a, c, d, n_acd, 0);
-      arr_add(&tris, &t);
-    }
-  }
-
-  buf vbo = buf_new(GL_ARRAY_BUFFER);
-  buf_data_n(&vbo, GL_DYNAMIC_DRAW, sizeof(chunk_vtx),
-             arr_len(verts), verts);
-
-  chunk c = {
-    .vao = vao_new(&vbo, NULL, 3, (attrib[]){attr_3f, attr_3f, attr_2f}),
-    .pos = pos,
-    .n_inds = arr_len(verts),
-    .obj = (obj){.m = tmesh_new(tris)}
-  };
-
-  arr_del(verts);
-
-  return c;
-}
-
-world world_new() {
-  world w = {
+world *world_new(obj player) {
+  auto w = objdup((world){
     .chunks = lmap_new(16, sizeof(v2i), sizeof(chunk), 0.5f, iv2_eq, iv2_hash),
+    .objs = arr_new(obj, 4),
     .objs_tick = arr_new(obj, 4),
-    .objs_draw = arr_new(obj, 4),
-    .render_lock = PTHREAD_MUTEX_INITIALIZER
-  };
+    .objs_to_add = arr_new(obj, 4),
+    .draw_lock = PTHREAD_MUTEX_INITIALIZER
+  });
 
-  for (int i = -world_draw_dist * 2; i <= world_draw_dist * 2; i++) {
-    for (int j = -world_draw_dist * 2; j <= world_draw_dist * 2; j++) {
+  world_add_obj(w, &player);
+
+  for (int i = -world_draw_dist; i <= world_draw_dist; i++) {
+    for (int j = -world_draw_dist; j <= world_draw_dist; j++) {
       chunk c = chunk_new((v2i){i, j});
-      lmap_add(&w.chunks, &(v2i){i, j}, &c);
+      lmap_add(&w->chunks, &(v2i){i, j}, &c);
     }
-  }
-
-  for (int i = 0; i < 64; i++) {
-    arr_add(&w.objs_tick,
-            &(obj){.c = cap_new((v3f){4.f * (i % 16), 30, 4.f * (i / 16)},
-                                v3_uy, 0.5f, 3.f)});
   }
 
   for (int i = 0; i < world_sp_size; i++) {
     for (int j = 0; j < world_sp_size; j++) {
-      w.regions[i][j] = reg_new();
+      w->regions[i][j] = reg_new();
     }
   }
+
+  arr_add_bulk(&w->objs_tick, w->objs_to_add);
+  arr_clear(w->objs_to_add);
+  arr_copy(&w->objs, w->objs_tick);
 
   return w;
 }
@@ -131,34 +62,39 @@ void world_tick(world *w, cam *c) {
       reg *r =
         &w->regions[i + world_draw_dist][j + world_draw_dist];
 
-      reg_add_sta(r, &ch->obj);
+      reg_add_sta(r, &ch->body);
     }
   }
 
   // handle all objects
-  for (obj *o = w->objs_tick; o != (obj *)arr_end(w->objs_tick); o++) {
-    *obj_get_prev_pos(o) = *obj_get_pos(o);
-    v2i obj_pos = world_get_chunk_pos(*obj_get_pos(o));
-    v2i off = iv2_sub(obj_pos, cam_pos);
+  for (obj *o = w->objs_tick, *end = arr_end(w->objs_tick); o != end; o++) {
+    body *b = &o->body;
+    b->prev_pos = b->pos;
+    v2i body_pos = world_get_chunk_pos(b->pos);
+    v2i off = iv2_sub(body_pos, cam_pos);
     for (int i = -1; i <= 1; i++) {
       for (int j = -1; j <= 1; j++) {
         if (abs(off.x + i) <= world_draw_dist &&
             abs(off.y + j) <= world_draw_dist) {
           reg *r = &w->regions[off.x + i + world_draw_dist][off.y + j +
                                                             world_draw_dist];
-          reg_add_dyn(r, o);
+          reg_add_dyn(r, b);
+          b->on_ground = 0, b->hits = 0, b->total_slip = 0;
         }
       }
     }
   }
 
-  // tick each region
+  // tick each physics region
   int const sub_steps = 4;
   float const step_time = 1.f / (float)sub_steps;
 
   for (int t = 0; t < sub_steps; t++) {
-    for (obj *o = w->objs_tick; o != arr_end(w->objs_tick); o++) {
-      obj_tick(o, step_time);
+    for (obj *o = w->objs_tick, *end = arr_end(w->objs_tick); o != end; o++) {
+      if (v3_dist(o->body.pos, c->pos) > (world_draw_dist + 1) * chunk_size)
+        continue;
+
+      body_tick(&o->body, step_time);
     }
 
     for (int i = 0; i < world_sp_size; i++) {
@@ -170,18 +106,36 @@ void world_tick(world *w, cam *c) {
       }
     }
   }
+
+  // tick all game objects
+  for (obj *o = w->objs_tick, *end = arr_end(w->objs_tick); o != end; o++) {
+    body *b = &o->body;
+    if (b->hits) b->vel = v3_mul(b->vel, b->total_slip / b->hits);
+    if (v3_dist(b->pos, c->pos) > world_draw_dist * chunk_size) {
+      continue;
+    }
+
+    obj_tick(o);
+  }
 }
 
 void world_draw(world *w, cam *c, float d) {
-  pthread_mutex_lock(&w->render_lock);
   v2i cam_to_chunk = world_get_chunk_pos(c->pos);
 
-  mod_get_sh(c, m4_ident);
+  static mtl chunk_mtl = {
+    .light = 6,
+    .dark = 0,
+    .light_model = {0, 0.8f, 0}
+  };
+
+  mod_get_sh(c, chunk_mtl, m4_ident);
 
   int n_gen = 0;
   for (int i = -world_draw_dist; i <= world_draw_dist; i++) {
     for (int j = -world_draw_dist; j <= world_draw_dist; j++) {
-      if (sqrt(i * i + j * j) > world_draw_dist + 1) continue;
+      float dist = sqrtf(i * i + j * j);
+      if (dist > world_draw_dist + 1) continue;
+      if (rad_wrap(atan2(i, j) + rad(c->yaw) + M_PIF * 0.125f) <= rad(c->zoom) * 1.33f && dist > 6) continue;
 
       v2i chunk_pos = {cam_to_chunk.x + i, cam_to_chunk.y + j};
 
@@ -195,15 +149,23 @@ void world_draw(world *w, cam *c, float d) {
       if (!ch) continue;
 
       vao_bind(&ch->vao);
-      gl_draw_arrays(GL_TRIANGLES, 0, ch->n_inds);
+      gl_draw_elements(GL_TRIANGLES, ch->n_inds, GL_UNSIGNED_INT, 0);
     }
   }
 
-  for (obj *o = w->objs_draw, *end = arr_end(w->objs_draw); o != end; o++) {
-    if (v3_dist((*obj_get_pos(o)), c->pos) >
-        world_draw_dist * chunk_size)
+  for (obj *o = w->objs, *end = arr_end(w->objs); o != end; o++) {
+    body *b = &o->body;
+    if (v3_dist(b->pos, c->pos) > world_draw_dist * chunk_size) {
       continue;
+    }
+
     obj_draw(o, c, d);
   }
-  pthread_mutex_unlock(&w->render_lock);
+}
+
+void world_add_obj(world *w, obj *o) {
+  o->body.prev_pos = o->body.pos;
+  o->world = w;
+  o->id = arr_len(w->objs_tick);
+  arr_add(&w->objs_to_add, o);
 }

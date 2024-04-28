@@ -1,7 +1,7 @@
 naming scheme:
-- structs: struct thing_t {};
-- 'constructors': thing_t thing() {}
-- 'member functions': thing_fn(thing_t* thing) {}
+- structs: struct thing {};
+- 'constructors': thing thing_new() {}
+- 'member functions': thing_fn(thing *thing) {}
 - free functions: fn() {}
 
 goal: you "understand" all the math and you make all your own art

@@ -4,9 +4,13 @@
 #include "world.h"
 #include "gui.h"
 #include "windows.h"
+#include "pal.h"
 #include <pthread.h>
 
 /*-- app --*/
+
+float const low_res = 480.f;
+app the_app;
 
 app app_new(int width, int height, const char *name) {
   if (!glfw_init()) {
@@ -66,68 +70,39 @@ app app_new(int width, int height, const char *name) {
                       {GL_DEPTH_ATTACHMENT,  tex_spec_depth24(width, height,
                                                               GL_NEAREST)}
                     }),
-    .cmyk = fbo_new(1, (fbo_spec[]){
-      {GL_COLOR_ATTACHMENT0, tex_spec_rgba16(width, height, GL_LINEAR)}}),
-    .cmyk2 = fbo_new(1, (fbo_spec[]){
-      {GL_COLOR_ATTACHMENT0, tex_spec_rgba16(width, height, GL_LINEAR)}}),
-    .to_cmyk = shader_new(2,
-                          (shader_spec[]){
-                            {GL_VERTEX_SHADER,   "res/post.vsh"},
-                            {GL_FRAGMENT_SHADER, "res/to_cmyk.fsh"}
-                          }),
-    .dots = shader_new(2,
-                       (shader_spec[]){
-                         {GL_VERTEX_SHADER,   "res/post.vsh"},
-                         {GL_FRAGMENT_SHADER, "res/halftone.fsh"}
-                       }),
+    .low_res = fbo_new(1, (fbo_spec[]){
+      {GL_COLOR_ATTACHMENT0,
+       tex_spec_rgba16(low_res * (float)width / (float)height, low_res,
+                       GL_NEAREST)}}),
+    .low_res_2 = fbo_new(1, (fbo_spec[]){
+      {GL_COLOR_ATTACHMENT0,
+       tex_spec_rgba16(low_res * (float)width / (float)height, low_res,
+                       GL_LINEAR)}}),
+    .dither = shader_new(2,
+                         (shader_spec[]){
+                           {GL_VERTEX_SHADER,   "res/post.vsh"},
+                           {GL_FRAGMENT_SHADER, "res/dither.fsh"}
+                         }),
     .blit = shader_new(2,
                        (shader_spec[]){
                          {GL_VERTEX_SHADER,   "res/post.vsh"},
                          {GL_FRAGMENT_SHADER, "res/blit.fsh"}
                        }),
-    .blur = shader_new(2,
-                       (shader_spec[]){
-                         {GL_VERTEX_SHADER,   "res/post.vsh"},
-                         {GL_FRAGMENT_SHADER, "res/blur.fsh"}
-                       }),
-    .world = world_new(),
+    .crt = shader_new(2,
+                      (shader_spec[]){
+                        {GL_VERTEX_SHADER,   "res/post.vsh"},
+                        {GL_FRAGMENT_SHADER, "res/crt.fsh"}
+                      }),
+    .world = world_new(hana_new()),
+    .player = 0,
     .font = font_new(read_bin_file("res/futura.otf"), 128, 40),
-    .win = win_new("hello world!", NULL, (v2f){100, 100}, (v2f){100, 400})
+    .win = win_new("hello world!", NULL, (v2f){100, 100}, (v2f){100, 400}),
+    .is_rendering_halftone = 1
   };
 }
 
 void app_setup_user_ptr(app *g) {
   glfw_set_window_user_pointer(g->glfw_win, g);
-}
-
-void move_cam(app *a, float dt) {
-  float x = 0, y = 0, z = 0;
-
-  if (!app_is_key_down(a, GLFW_KEY_LEFT_CONTROL)) {
-    z += (float)app_is_key_down(a, GLFW_KEY_W);
-    z -= (float)app_is_key_down(a, GLFW_KEY_S);
-    x += (float)app_is_key_down(a, GLFW_KEY_D);
-    x -= (float)app_is_key_down(a, GLFW_KEY_A);
-    y += (float)app_is_key_down(a, GLFW_KEY_SPACE);
-    y -= (float)app_is_key_down(a, GLFW_KEY_LEFT_SHIFT);
-  }
-
-  v3f x_comp = v3_mul(a->cam.right, x), y_comp = v3_mul(a->cam.world_up, y);
-
-  v3f flat_front = {a->cam.front.x, 0.f, a->cam.front.z};
-  if (v3_len(flat_front) > 0.0001) {
-    v3_norm(&flat_front);
-  }
-
-  v3f z_comp = v3_mul(flat_front, z);
-
-  v3f delta = v3_add(v3_add(x_comp, y_comp), z_comp);
-
-  if (v3_len(delta) > 0.0001) {
-    v3_norm(&delta);
-  }
-
-  a->cam.pos = v3_add(a->cam.pos, v3_mul(delta, dt * 20.f));
 }
 
 void app_tick(app *a) {
@@ -145,13 +120,14 @@ void app_tick(app *a) {
 
   auto t_start = (float)glfw_get_time();
   for (int j = 0; j < min(i, 10); j++) {
-    world_tick(&a->world, &a->cam);
-    auto b_start = (float)glfw_get_time();
-    pthread_mutex_lock(&a->world.render_lock);
-    arr_copy(&a->world.objs_draw, a->world.objs_tick);
+    world_tick(a->world, &a->cam);
+    arr_add_bulk(&a->world->objs_tick, a->world->objs_to_add);
+    arr_clear(a->world->objs_to_add);
+
+    pthread_mutex_lock(&a->world->draw_lock);
+    arr_copy(&a->world->objs, a->world->objs_tick);
     a->dt -= 1;
-    pthread_mutex_unlock(&a->world.render_lock);
-    a->mspb = ((float)glfw_get_time() - b_start) * 1000;
+    pthread_mutex_unlock(&a->world->draw_lock);
   }
 
   if (i) {
@@ -175,15 +151,13 @@ void app_run(app *a) {
   gl_clear_color(0.3f, 1.f, 1.f, 1.f);
   gl_enable(GL_BLEND);
   gl_blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  gl_cull_face(GL_CCW);
 
   gl_debug_message_callback(gl_error_callback, NULL);
   gl_enable(GL_DEBUG_OUTPUT);
-//  gl_enable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
   pthread_t thread;
   pthread_create(&thread, NULL, tick_runner, a);
-
-  double last_frame = 0;
 
   while (!glfw_window_should_close(a->glfw_win)) {
     auto start = glfw_get_time();
@@ -194,58 +168,49 @@ void app_run(app *a) {
     fbo_bind(&a->main);
     gl_clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    move_cam(a, (float)(start - last_frame));
+    pthread_mutex_lock(&a->world->draw_lock);
+    a->cam.pos = v3_add(obj_get_ipos(&a->world->objs[a->player], a->dt),
+                        (v3f){0, 0.75f, 0});
     cam_rot(&a->cam);
-    world_draw(&a->world, &a->cam, a->dt);
+    world_draw(a->world, &a->cam, a->dt);
     imod_draw(&a->cam);
+    pthread_mutex_unlock(&a->world->draw_lock);
 
     if (a->is_rendering_halftone) {
-      gl_disable(GL_BLEND);
-
-      // convert to cmyk
-      fbo_bind(&a->cmyk);
-      gl_clear(GL_COLOR_BUFFER_BIT);
-
-      shader_bind(&a->to_cmyk);
-      to_cmyk_up(&a->to_cmyk,
-                 (to_cmyk){
-                   .tex = fbo_tex_at(&a->main, GL_COLOR_ATTACHMENT0),
-                   .unit = 0
-                 });
-
-      vao_bind(&a->post);
-      gl_draw_arrays(GL_TRIANGLES, 0, 6);
-
-      // blur cmyk
-      fbo_bind(&a->cmyk2);
-      gl_clear(GL_COLOR_BUFFER_BIT);
-
-      shader_bind(&a->blur);
-      blur_up(&a->blur,
-              (blur){
-                .tex = fbo_tex_at(&a->cmyk, GL_COLOR_ATTACHMENT0),
-                .unit = 0,
-                .scr_size = a->dim
-              });
-
-      vao_bind(&a->post);
-      gl_draw_arrays(GL_TRIANGLES, 0, 6);
-
       gl_enable(GL_BLEND);
 
-      // draw dots on back-buffer
-      gl_bind_framebuffer(GL_FRAMEBUFFER, 0);
+      gl_blit_named_framebuffer(a->main.id, a->low_res.id, 0, 0, a->dim.x,
+                                a->dim.y, 0, 0,
+                                low_res * (float)a->dim.x / (float)a->dim.y,
+                                low_res, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+      fbo_bind(&a->low_res_2);
+      gl_viewport(0, 0, low_res * (float)a->dim.x / (float)a->dim.y, low_res);
       gl_disable(GL_DEPTH_TEST);
       gl_clear(GL_COLOR_BUFFER_BIT);
 
-      shader_bind(&a->dots);
-      halftone_up(&a->dots,
-                  (halftone){
-                    .cmyk = fbo_tex_at(&a->cmyk2, GL_COLOR_ATTACHMENT0),
-                    .unit = 0,
-                    .dots_per_line = 160,
-                    .scr_size = a->dim
-                  });
+      shader_bind(&a->dither);
+      dither_up(&a->dither,
+                (dither){
+                  .tex = fbo_tex_at(&a->low_res, GL_COLOR_ATTACHMENT0),
+                  .unit = 0,
+                  .pal_size = dreamy_haze_size,
+                  .pal = dreamy_haze
+                });
+
+      vao_bind(&a->post);
+      gl_draw_arrays(GL_TRIANGLES, 0, 6);
+
+      gl_bind_framebuffer(GL_FRAMEBUFFER, 0);
+      gl_viewport(0, 0, a->dim.x, a->dim.y);
+
+      shader_bind(&a->crt);
+      crt_up(&a->crt, (crt){
+        .tex = fbo_tex_at(&a->low_res_2, GL_COLOR_ATTACHMENT0),
+        .unit = 0,
+        .aspect = a->dim.x / a->dim.y,
+        .lores = low_res
+      });
 
       vao_bind(&a->post);
       gl_draw_arrays(GL_TRIANGLES, 0, 6);
@@ -267,20 +232,24 @@ void app_run(app *a) {
 
     gl_enable(GL_BLEND);
 
+    draw_rect(a, (v2f){10, 10}, (v2f){640, 20 + a->font.size * 4 + 10},
+              (v4f){0.f, 0.f, 0.f, 0.5f});
     char text_buf[128];
     sprintf_s(text_buf, 128, "xyz: %f %f %f", a->cam.pos.x, a->cam.pos.y,
               a->cam.pos.z);
     font_draw(&a->font, a, text_buf, (v2f){20, 20}, 0xffffffff, 1, 1.f);
-    sprintf_s(text_buf, 128, "msp(t/b/f): %f/%f/%lf", a->mspt, a->mspb,
+    sprintf_s(text_buf, 128, "msp(t/f): %f/%lf", a->mspt,
               (glfw_get_time() - start) * 1000);
     font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size}, 0xffffffff,
               1, 1.f);
-    sprintf_s(text_buf, 128, "world size: %zu/%zu", a->world.chunks.count,
-              a->world.chunks.cap);
+    sprintf_s(text_buf, 128, "world size: %zu/%zu", a->world->chunks.count,
+              a->world->chunks.cap);
     font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 2},
               0xffffffff, 1, 1.f);
+    sprintf_s(text_buf, 128, "# objects: %zu", arr_len(a->world->objs));
+    font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 3},
+              0xffffffff, 1, 1.f);
 
-    last_frame = start;
     glfw_swap_buffers(a->glfw_win);
     glfw_poll_events();
   }
@@ -299,8 +268,10 @@ bool app_is_key_down(app *g, int key) {
 void framebuffer_size_callback(GLFWwindow *win, int width, int height) {
   app *k = glfw_get_window_user_pointer(win);
   k->dim = (v2f){(float)width, (float)height};
-  fbo_resize(&k->cmyk, width, height, 1, (uint[]){GL_COLOR_ATTACHMENT0});
-  fbo_resize(&k->cmyk2, width, height, 1, (uint[]){GL_COLOR_ATTACHMENT0});
+  fbo_resize(&k->low_res, low_res * (float)width / (float)height, low_res, 1,
+             (uint[]){GL_COLOR_ATTACHMENT0});
+  fbo_resize(&k->low_res_2, low_res * (float)width / (float)height, low_res, 1,
+             (uint[]){GL_COLOR_ATTACHMENT0});
   fbo_resize(&k->main, width, height, 2,
              (uint[]){GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT});
   k->cam.aspect = (float)width / (float)height;
@@ -317,7 +288,8 @@ void
 key_callback(GLFWwindow *win, int keycode, int scancode, int action, int mods) {
   app *g = glfw_get_window_user_pointer(win);
   switch (keycode) {
-    case GLFW_KEY_ESCAPE: {
+    case GLFW_KEY_ESCAPE:
+    case GLFW_KEY_GRAVE_ACCENT: {
       if (action != GLFW_PRESS) break;
       glfw_set_input_mode(win, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
       g->is_mouse_captured = false;

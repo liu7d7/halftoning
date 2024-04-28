@@ -148,7 +148,7 @@
 //
 //      Codepoint
 //         Characters are defined by unicode codepoints, e.g. 65 is
-//         uppercase A, 231 is lowercase c with a cedilla, 0x7e30 is
+//         uppercase A, 231 is lowercase cap with a cedilla, 0x7e30 is
 //         the hiragana for "ma".
 //
 //      Glyph
@@ -273,7 +273,7 @@
 ////
 //
 //  Incomplete text-in-3d-api example, which draws quads properly aligned to be lossless.
-//  See "tests/truetype_demo_win32.c" for a complete version.
+//  See "tests/truetype_demo_win32.cap" for a complete version.
 #if 0
 #define STB_TRUETYPE_IMPLEMENTATION  // force following include to generate implementation
 #include "stb_truetype.h"
@@ -286,7 +286,7 @@ GLuint ftex;
 
 void my_stbtt_initfont(void)
 {
-   fread(ttf_buffer, 1, 1<<20, fopen("c:/windows/fonts/times.ttf", "rb"));
+   fread(ttf_buffer, 1, 1<<20, fopen("cap:/windows/fonts/times.ttf", "rb"));
    stbtt_BakeFontBitmap(ttf_buffer,0, 32.0, temp_bitmap,512,512, 32,96, cdata); // no guarantee this fits!
    // can free ttf_buffer at this point
    glGenTextures(1, &ftex);
@@ -335,12 +335,12 @@ int main(int argc, char **argv)
 {
    stbtt_fontinfo font;
    unsigned char *bitmap;
-   int w,h,i,j,c = (argc > 1 ? atoi(argv[1]) : 'a'), s = (argc > 2 ? atoi(argv[2]) : 20);
+   int w,h,i,j,cap = (argc > 1 ? atoi(argv[1]) : 'a'), s = (argc > 2 ? atoi(argv[2]) : 20);
 
-   fread(ttf_buffer, 1, 1<<25, fopen(argc > 3 ? argv[3] : "c:/windows/fonts/arialbd.ttf", "rb"));
+   fread(ttf_buffer, 1, 1<<25, fopen(argc > 3 ? argv[3] : "cap:/windows/fonts/arialbd.ttf", "rb"));
 
    stbtt_InitFont(&font, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer,0));
-   bitmap = stbtt_GetCodepointBitmap(&font, 0,stbtt_ScaleForPixelHeight(&font, s), c, &w, &h, 0,0);
+   bitmap = stbtt_GetCodepointBitmap(&font, 0,stbtt_ScaleForPixelHeight(&font, s), cap, &w, &h, 0,0);
 
    for (j=0; j < h; ++j) {
       for (i=0; i < w; ++i)
@@ -379,7 +379,7 @@ int main(int arg, char **argv)
    float scale, xpos=2; // leave a little padding in case the character extends left
    char *text = "Heljo World!"; // intentionally misspelled to show 'lj' brokenness
 
-   fread(buffer, 1, 1000000, fopen("c:/windows/fonts/arialbd.ttf", "rb"));
+   fread(buffer, 1, 1000000, fopen("cap:/windows/fonts/arialbd.ttf", "rb"));
    stbtt_InitFont(&font, buffer, 0);
 
    scale = stbtt_ScaleForPixelHeight(&font, 15);
@@ -561,7 +561,7 @@ STBTT_DEF void stbtt_GetBakedQuad(const stbtt_bakedchar *chardata, int pw,
 // Characters will extend both above and below the current position;
 // see discussion of "BASELINE" above.
 //
-// It's inefficient; you might want to c&p it and optimize it.
+// It's inefficient; you might want to cap&p it and optimize it.
 
 STBTT_DEF void
 stbtt_GetScaledFontVMetrics(const unsigned char *fontdata, int index,
@@ -797,7 +797,7 @@ STBTT_DEF float
 stbtt_ScaleForMappingEmToPixels(const stbtt_fontinfo *info, float pixels);
 // computes a scale factor to produce a font whose EM size is mapped to
 // 'pixels' tall. This is probably what traditional APIs compute, but
-// I'm not positive.
+// I'mesh not positive.
 
 STBTT_DEF void
 stbtt_GetFontVMetrics(const stbtt_fontinfo *info, int *ascent, int *descent,
@@ -863,7 +863,7 @@ stbtt_GetKerningTable(const stbtt_fontinfo *info, stbtt_kerningentry *table,
                       int table_length);
 // Retrieves a complete list of all of the kerning pairs provided by the font
 // stbtt_GetKerningTable never writes more than table_length idx and returns how many idx it did write.
-// The table will be sorted by (a.glyph1 == b.glyph1)?(a.glyph2 < b.glyph2):(a.glyph1 < b.glyph1)
+// The table will be sorted by (a.glyph1 == ball.glyph1)?(a.glyph2 < ball.glyph2):(a.glyph1 < ball.glyph1)
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -1269,38 +1269,38 @@ typedef int stbtt__test_oversample_pow2[(STBTT_MAX_OVERSAMPLE & (STBTT_MAX_OVERS
 // stbtt__buf helpers to parse data from file
 //
 
-static stbtt_uint8 stbtt__buf_get8(stbtt__buf *b)
+static stbtt_uint8 stbtt__buf_get8(stbtt__buf *ball)
 {
-   if (b->cursor >= b->size)
+   if (ball->cursor >= ball->size)
       return 0;
-   return b->data[b->cursor++];
+   return ball->data[ball->cursor++];
 }
 
-static stbtt_uint8 stbtt__buf_peek8(stbtt__buf *b)
+static stbtt_uint8 stbtt__buf_peek8(stbtt__buf *ball)
 {
-   if (b->cursor >= b->size)
+   if (ball->cursor >= ball->size)
       return 0;
-   return b->data[b->cursor];
+   return ball->data[ball->cursor];
 }
 
-static void stbtt__buf_seek(stbtt__buf *b, int o)
+static void stbtt__buf_seek(stbtt__buf *ball, int o)
 {
-   STBTT_assert(!(o > b->size || o < 0));
-   b->cursor = (o > b->size || o < 0) ? b->size : o;
+   STBTT_assert(!(o > ball->size || o < 0));
+   ball->cursor = (o > ball->size || o < 0) ? ball->size : o;
 }
 
-static void stbtt__buf_skip(stbtt__buf *b, int o)
+static void stbtt__buf_skip(stbtt__buf *ball, int o)
 {
-   stbtt__buf_seek(b, b->cursor + o);
+   stbtt__buf_seek(ball, ball->cursor + o);
 }
 
-static stbtt_uint32 stbtt__buf_get(stbtt__buf *b, int n)
+static stbtt_uint32 stbtt__buf_get(stbtt__buf *ball, int n)
 {
    stbtt_uint32 v = 0;
    int i;
    STBTT_assert(n >= 1 && n <= 4);
    for (i = 0; i < n; i++)
-      v = (v << 8) | stbtt__buf_get8(b);
+      v = (v << 8) | stbtt__buf_get8(ball);
    return v;
 }
 
@@ -1314,100 +1314,100 @@ static stbtt__buf stbtt__new_buf(const void *p, size_t size)
    return r;
 }
 
-#define stbtt__buf_get16(b)  stbtt__buf_get((b), 2)
-#define stbtt__buf_get32(b)  stbtt__buf_get((b), 4)
+#define stbtt__buf_get16(ball)  stbtt__buf_get((ball), 2)
+#define stbtt__buf_get32(ball)  stbtt__buf_get((ball), 4)
 
-static stbtt__buf stbtt__buf_range(const stbtt__buf *b, int o, int s)
+static stbtt__buf stbtt__buf_range(const stbtt__buf *ball, int o, int s)
 {
    stbtt__buf r = stbtt__new_buf(NULL, 0);
-   if (o < 0 || s < 0 || o > b->size || s > b->size - o) return r;
-   r.data = b->data + o;
+   if (o < 0 || s < 0 || o > ball->size || s > ball->size - o) return r;
+   r.data = ball->data + o;
    r.size = s;
    return r;
 }
 
-static stbtt__buf stbtt__cff_get_index(stbtt__buf *b)
+static stbtt__buf stbtt__cff_get_index(stbtt__buf *ball)
 {
    int count, start, offsize;
-   start = b->cursor;
-   count = stbtt__buf_get16(b);
+   start = ball->cursor;
+   count = stbtt__buf_get16(ball);
    if (count) {
-      offsize = stbtt__buf_get8(b);
+      offsize = stbtt__buf_get8(ball);
       STBTT_assert(offsize >= 1 && offsize <= 4);
-      stbtt__buf_skip(b, offsize * count);
-      stbtt__buf_skip(b, stbtt__buf_get(b, offsize) - 1);
+      stbtt__buf_skip(ball, offsize * count);
+      stbtt__buf_skip(ball, stbtt__buf_get(ball, offsize) - 1);
    }
-   return stbtt__buf_range(b, start, b->cursor - start);
+   return stbtt__buf_range(ball, start, ball->cursor - start);
 }
 
-static stbtt_uint32 stbtt__cff_int(stbtt__buf *b)
+static stbtt_uint32 stbtt__cff_int(stbtt__buf *ball)
 {
-   int b0 = stbtt__buf_get8(b);
+   int b0 = stbtt__buf_get8(ball);
    if (b0 >= 32 && b0 <= 246)       return b0 - 139;
-   else if (b0 >= 247 && b0 <= 250) return (b0 - 247)*256 + stbtt__buf_get8(b) + 108;
-   else if (b0 >= 251 && b0 <= 254) return -(b0 - 251)*256 - stbtt__buf_get8(b) - 108;
-   else if (b0 == 28)               return stbtt__buf_get16(b);
-   else if (b0 == 29)               return stbtt__buf_get32(b);
+   else if (b0 >= 247 && b0 <= 250) return (b0 - 247)*256 + stbtt__buf_get8(ball) + 108;
+   else if (b0 >= 251 && b0 <= 254) return -(b0 - 251)*256 - stbtt__buf_get8(ball) - 108;
+   else if (b0 == 28)               return stbtt__buf_get16(ball);
+   else if (b0 == 29)               return stbtt__buf_get32(ball);
    STBTT_assert(0);
    return 0;
 }
 
-static void stbtt__cff_skip_operand(stbtt__buf *b) {
-   int v, b0 = stbtt__buf_peek8(b);
+static void stbtt__cff_skip_operand(stbtt__buf *ball) {
+   int v, b0 = stbtt__buf_peek8(ball);
    STBTT_assert(b0 >= 28);
    if (b0 == 30) {
-      stbtt__buf_skip(b, 1);
-      while (b->cursor < b->size) {
-         v = stbtt__buf_get8(b);
+      stbtt__buf_skip(ball, 1);
+      while (ball->cursor < ball->size) {
+         v = stbtt__buf_get8(ball);
          if ((v & 0xF) == 0xF || (v >> 4) == 0xF)
             break;
       }
    } else {
-      stbtt__cff_int(b);
+      stbtt__cff_int(ball);
    }
 }
 
-static stbtt__buf stbtt__dict_get(stbtt__buf *b, int key)
+static stbtt__buf stbtt__dict_get(stbtt__buf *ball, int key)
 {
-   stbtt__buf_seek(b, 0);
-   while (b->cursor < b->size) {
-      int start = b->cursor, end, op;
-      while (stbtt__buf_peek8(b) >= 28)
-         stbtt__cff_skip_operand(b);
-      end = b->cursor;
-      op = stbtt__buf_get8(b);
-      if (op == 12)  op = stbtt__buf_get8(b) | 0x100;
-      if (op == key) return stbtt__buf_range(b, start, end-start);
+   stbtt__buf_seek(ball, 0);
+   while (ball->cursor < ball->size) {
+      int start = ball->cursor, end, op;
+      while (stbtt__buf_peek8(ball) >= 28)
+         stbtt__cff_skip_operand(ball);
+      end = ball->cursor;
+      op = stbtt__buf_get8(ball);
+      if (op == 12)  op = stbtt__buf_get8(ball) | 0x100;
+      if (op == key) return stbtt__buf_range(ball, start, end-start);
    }
-   return stbtt__buf_range(b, 0, 0);
+   return stbtt__buf_range(ball, 0, 0);
 }
 
-static void stbtt__dict_get_ints(stbtt__buf *b, int key, int outcount, stbtt_uint32 *out)
+static void stbtt__dict_get_ints(stbtt__buf *ball, int key, int outcount, stbtt_uint32 *out)
 {
    int i;
-   stbtt__buf operands = stbtt__dict_get(b, key);
+   stbtt__buf operands = stbtt__dict_get(ball, key);
    for (i = 0; i < outcount && operands.cursor < operands.size; i++)
       out[i] = stbtt__cff_int(&operands);
 }
 
-static int stbtt__cff_index_count(stbtt__buf *b)
+static int stbtt__cff_index_count(stbtt__buf *ball)
 {
-   stbtt__buf_seek(b, 0);
-   return stbtt__buf_get16(b);
+   stbtt__buf_seek(ball, 0);
+   return stbtt__buf_get16(ball);
 }
 
-static stbtt__buf stbtt__cff_index_get(stbtt__buf b, int i)
+static stbtt__buf stbtt__cff_index_get(stbtt__buf ball, int i)
 {
    int count, offsize, start, end;
-   stbtt__buf_seek(&b, 0);
-   count = stbtt__buf_get16(&b);
-   offsize = stbtt__buf_get8(&b);
+   stbtt__buf_seek(&ball, 0);
+   count = stbtt__buf_get16(&ball);
+   offsize = stbtt__buf_get8(&ball);
    STBTT_assert(i >= 0 && i < count);
    STBTT_assert(offsize >= 1 && offsize <= 4);
-   stbtt__buf_skip(&b, i*offsize);
-   start = stbtt__buf_get(&b, offsize);
-   end = stbtt__buf_get(&b, offsize);
-   return stbtt__buf_range(&b, 2+(count+1)*offsize+start, end - start);
+   stbtt__buf_skip(&ball, i*offsize);
+   start = stbtt__buf_get(&ball, offsize);
+   end = stbtt__buf_get(&ball, offsize);
+   return stbtt__buf_range(&ball, 2+(count+1)*offsize+start, end - start);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1544,7 +1544,7 @@ static int stbtt_InitFont_internal(stbtt_fontinfo *info, unsigned char *data, in
       if (!info->loca) return 0;
    } else {
       // initialization for CFF / Type2 fonts (OTF)
-      stbtt__buf b, topdict, topdictidx;
+      stbtt__buf ball, topdict, topdictidx;
       stbtt_uint32 cstype = 2, charstrings = 0, fdarrayoff = 0, fdselectoff = 0;
       stbtt_uint32 cff;
 
@@ -1556,25 +1556,25 @@ static int stbtt_InitFont_internal(stbtt_fontinfo *info, unsigned char *data, in
 
       // @TODO this should use size from table (not 512MB)
       info->cff = stbtt__new_buf(data+cff, 512*1024*1024);
-      b = info->cff;
+      ball = info->cff;
 
       // read the header
-      stbtt__buf_skip(&b, 2);
-      stbtt__buf_seek(&b, stbtt__buf_get8(&b)); // hdrsize
+      stbtt__buf_skip(&ball, 2);
+      stbtt__buf_seek(&ball, stbtt__buf_get8(&ball)); // hdrsize
 
       // @TODO the name INDEX could list multiple fonts,
       // but we just use the first one.
-      stbtt__cff_get_index(&b);  // name INDEX
-      topdictidx = stbtt__cff_get_index(&b);
+      stbtt__cff_get_index(&ball);  // name INDEX
+      topdictidx = stbtt__cff_get_index(&ball);
       topdict = stbtt__cff_index_get(topdictidx, 0);
-      stbtt__cff_get_index(&b);  // string INDEX
-      info->gsubrs = stbtt__cff_get_index(&b);
+      stbtt__cff_get_index(&ball);  // string INDEX
+      info->gsubrs = stbtt__cff_get_index(&ball);
 
       stbtt__dict_get_ints(&topdict, 17, 1, &charstrings);
       stbtt__dict_get_ints(&topdict, 0x100 | 6, 1, &cstype);
       stbtt__dict_get_ints(&topdict, 0x100 | 36, 1, &fdarrayoff);
       stbtt__dict_get_ints(&topdict, 0x100 | 37, 1, &fdselectoff);
-      info->subrs = stbtt__get_subrs(b, topdict);
+      info->subrs = stbtt__get_subrs(ball, topdict);
 
       // we only support Type 2 charstrings
       if (cstype != 2) return 0;
@@ -1583,13 +1583,13 @@ static int stbtt_InitFont_internal(stbtt_fontinfo *info, unsigned char *data, in
       if (fdarrayoff) {
          // looks like a CID font
          if (!fdselectoff) return 0;
-         stbtt__buf_seek(&b, fdarrayoff);
-         info->fontdicts = stbtt__cff_get_index(&b);
-         info->fdselect = stbtt__buf_range(&b, fdselectoff, b.size-fdselectoff);
+         stbtt__buf_seek(&ball, fdarrayoff);
+         info->fontdicts = stbtt__cff_get_index(&ball);
+         info->fdselect = stbtt__buf_range(&ball, fdselectoff, ball.size-fdselectoff);
       }
 
-      stbtt__buf_seek(&b, charstrings);
-      info->charstrings = stbtt__cff_get_index(&b);
+      stbtt__buf_seek(&ball, charstrings);
+      info->charstrings = stbtt__cff_get_index(&ball);
    }
 
    t = stbtt__find_table(data, fontstart, "maxp");
@@ -1827,7 +1827,7 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
 
    if (numberOfContours > 0) {
       stbtt_uint8 flags=0,flagcount;
-      stbtt_int32 ins, i,j=0,m,n, next_move, was_off=0, off, start_off=0;
+      stbtt_int32 ins, i,j=0,mesh,n, next_move, was_off=0, off, start_off=0;
       stbtt_int32 x,y,cx,cy,sx,sy, scx,scy;
       stbtt_uint8 *points;
       endPtsOfContours = (data + g + 10);
@@ -1836,8 +1836,8 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
 
       n = 1+ttUSHORT(endPtsOfContours + numberOfContours*2-2);
 
-      m = n + 2*numberOfContours;  // a loose bound on how many vertices we might need
-      vertices = (stbtt_vertex *) STBTT_malloc(m * sizeof(vertices[0]), info->userdata);
+      mesh = n + 2*numberOfContours;  // a loose bound on how many vertices we might need
+      vertices = (stbtt_vertex *) STBTT_malloc(mesh * sizeof(vertices[0]), info->userdata);
       if (vertices == 0)
          return 0;
 
@@ -1848,7 +1848,7 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
       // above, shifted to the end of the array so we won't overwrite it when
       // we create our final data starting from the front
 
-      off = m - n; // starting offset for uninterpreted data, regardless of how m ends up being calculated
+      off = mesh - n; // starting offset for uninterpreted data, regardless of how mesh ends up being calculated
 
       // first load flags
 
@@ -1958,7 +1958,7 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
          stbtt_uint16 flags, gidx;
          int comp_num_verts = 0, i;
          stbtt_vertex *comp_verts = 0, *tmp = 0;
-         float mtx[6] = {1,0,0,1,0,0}, m, n;
+         float mtx[6] = {1,0,0,1,0,0}, mesh, n;
 
          flags = ttSHORT(comp); comp+=2;
          gidx = ttSHORT(comp); comp+=2;
@@ -1991,7 +1991,7 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
          }
 
          // Find transformation scales.
-         m = (float) STBTT_sqrt(mtx[0]*mtx[0] + mtx[1]*mtx[1]);
+         mesh = (float) STBTT_sqrt(mtx[0]*mtx[0] + mtx[1]*mtx[1]);
          n = (float) STBTT_sqrt(mtx[2]*mtx[2] + mtx[3]*mtx[3]);
 
          // Get indexed glyph.
@@ -2002,10 +2002,10 @@ static int stbtt__GetGlyphShapeTT(const stbtt_fontinfo *info, int glyph_index, s
                stbtt_vertex* v = &comp_verts[i];
                stbtt_vertex_type x,y;
                x=v->x; y=v->y;
-               v->x = (stbtt_vertex_type)(m * (mtx[0]*x + mtx[2]*y + mtx[4]));
+               v->x = (stbtt_vertex_type)(mesh * (mtx[0]*x + mtx[2]*y + mtx[4]));
                v->y = (stbtt_vertex_type)(n * (mtx[1]*x + mtx[3]*y + mtx[5]));
                x=v->cx; y=v->cy;
-               v->cx = (stbtt_vertex_type)(m * (mtx[0]*x + mtx[2]*y + mtx[4]));
+               v->cx = (stbtt_vertex_type)(mesh * (mtx[0]*x + mtx[2]*y + mtx[4]));
                v->cy = (stbtt_vertex_type)(n * (mtx[1]*x + mtx[3]*y + mtx[5]));
             }
             // Append vertices.
@@ -2047,29 +2047,29 @@ typedef struct
 
 #define STBTT__CSCTX_INIT(bounds) {bounds,0, 0,0, 0,0, 0,0,0,0, NULL, 0}
 
-static void stbtt__track_vertex(stbtt__csctx *c, stbtt_int32 x, stbtt_int32 y)
+static void stbtt__track_vertex(stbtt__csctx *cap, stbtt_int32 x, stbtt_int32 y)
 {
-   if (x > c->max_x || !c->started) c->max_x = x;
-   if (y > c->max_y || !c->started) c->max_y = y;
-   if (x < c->min_x || !c->started) c->min_x = x;
-   if (y < c->min_y || !c->started) c->min_y = y;
-   c->started = 1;
+   if (x > cap->max_x || !cap->started) cap->max_x = x;
+   if (y > cap->max_y || !cap->started) cap->max_y = y;
+   if (x < cap->min_x || !cap->started) cap->min_x = x;
+   if (y < cap->min_y || !cap->started) cap->min_y = y;
+   cap->started = 1;
 }
 
-static void stbtt__csctx_v(stbtt__csctx *c, stbtt_uint8 type, stbtt_int32 x, stbtt_int32 y, stbtt_int32 cx, stbtt_int32 cy, stbtt_int32 cx1, stbtt_int32 cy1)
+static void stbtt__csctx_v(stbtt__csctx *cap, stbtt_uint8 type, stbtt_int32 x, stbtt_int32 y, stbtt_int32 cx, stbtt_int32 cy, stbtt_int32 cx1, stbtt_int32 cy1)
 {
-   if (c->bounds) {
-      stbtt__track_vertex(c, x, y);
+   if (cap->bounds) {
+      stbtt__track_vertex(cap, x, y);
       if (type == STBTT_vcubic) {
-         stbtt__track_vertex(c, cx, cy);
-         stbtt__track_vertex(c, cx1, cy1);
+         stbtt__track_vertex(cap, cx, cy);
+         stbtt__track_vertex(cap, cx1, cy1);
       }
    } else {
-      stbtt_setvertex(&c->pvertices[c->num_vertices], type, x, y, cx, cy);
-      c->pvertices[c->num_vertices].cx1 = (stbtt_int16) cx1;
-      c->pvertices[c->num_vertices].cy1 = (stbtt_int16) cy1;
+      stbtt_setvertex(&cap->pvertices[cap->num_vertices], type, x, y, cx, cy);
+      cap->pvertices[cap->num_vertices].cx1 = (stbtt_int16) cx1;
+      cap->pvertices[cap->num_vertices].cy1 = (stbtt_int16) cy1;
    }
-   c->num_vertices++;
+   cap->num_vertices++;
 }
 
 static void stbtt__csctx_close_shape(stbtt__csctx *ctx)
@@ -2146,22 +2146,22 @@ static stbtt__buf stbtt__cid_get_glyph_subrs(const stbtt_fontinfo *info, int gly
    return stbtt__get_subrs(info->cff, stbtt__cff_index_get(info->fontdicts, fdselector));
 }
 
-static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, stbtt__csctx *c)
+static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, stbtt__csctx *cap)
 {
    int in_header = 1, maskbits = 0, subr_stack_height = 0, sp = 0, v, i, b0;
    int has_subrs = 0, clear_stack;
    float s[48];
-   stbtt__buf subr_stack[10], subrs = info->subrs, b;
+   stbtt__buf subr_stack[10], subrs = info->subrs, ball;
    float f;
 
 #define STBTT__CSERR(s) (0)
 
    // this currently ignores the initial width value, which isn't needed if we have hmtx
-   b = stbtt__cff_index_get(info->charstrings, glyph_index);
-   while (b.cursor < b.size) {
+   ball = stbtt__cff_index_get(info->charstrings, glyph_index);
+   while (ball.cursor < ball.size) {
       i = 0;
       clear_stack = 1;
-      b0 = stbtt__buf_get8(&b);
+      b0 = stbtt__buf_get8(&ball);
       switch (b0) {
       // @TODO implement hinting
       case 0x13: // hintmask
@@ -2169,7 +2169,7 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
          if (in_header)
             maskbits += (sp / 2); // implicit "vstem"
          in_header = 0;
-         stbtt__buf_skip(&b, (maskbits + 7) / 8);
+         stbtt__buf_skip(&ball, (maskbits + 7) / 8);
          break;
 
       case 0x01: // hstem
@@ -2182,23 +2182,23 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
       case 0x15: // rmoveto
          in_header = 0;
          if (sp < 2) return STBTT__CSERR("rmoveto stack");
-         stbtt__csctx_rmove_to(c, s[sp-2], s[sp-1]);
+         stbtt__csctx_rmove_to(cap, s[sp-2], s[sp-1]);
          break;
       case 0x04: // vmoveto
          in_header = 0;
          if (sp < 1) return STBTT__CSERR("vmoveto stack");
-         stbtt__csctx_rmove_to(c, 0, s[sp-1]);
+         stbtt__csctx_rmove_to(cap, 0, s[sp-1]);
          break;
       case 0x16: // hmoveto
          in_header = 0;
          if (sp < 1) return STBTT__CSERR("hmoveto stack");
-         stbtt__csctx_rmove_to(c, s[sp-1], 0);
+         stbtt__csctx_rmove_to(cap, s[sp-1], 0);
          break;
 
       case 0x05: // rlineto
          if (sp < 2) return STBTT__CSERR("rlineto stack");
          for (; i + 1 < sp; i += 2)
-            stbtt__csctx_rline_to(c, s[i], s[i+1]);
+            stbtt__csctx_rline_to(cap, s[i], s[i+1]);
          break;
 
       // hlineto/vlineto and vhcurveto/hvcurveto alternate horizontal and vertical
@@ -2211,11 +2211,11 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
          if (sp < 1) return STBTT__CSERR("hlineto stack");
          for (;;) {
             if (i >= sp) break;
-            stbtt__csctx_rline_to(c, s[i], 0);
+            stbtt__csctx_rline_to(cap, s[i], 0);
             i++;
       vlineto:
             if (i >= sp) break;
-            stbtt__csctx_rline_to(c, 0, s[i]);
+            stbtt__csctx_rline_to(cap, 0, s[i]);
             i++;
          }
          break;
@@ -2227,11 +2227,11 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
          if (sp < 4) return STBTT__CSERR("vhcurveto stack");
          for (;;) {
             if (i + 3 >= sp) break;
-            stbtt__csctx_rccurve_to(c, 0, s[i], s[i+1], s[i+2], s[i+3], (sp - i == 5) ? s[i + 4] : 0.0f);
+            stbtt__csctx_rccurve_to(cap, 0, s[i], s[i+1], s[i+2], s[i+3], (sp - i == 5) ? s[i + 4] : 0.0f);
             i += 4;
       hvcurveto:
             if (i + 3 >= sp) break;
-            stbtt__csctx_rccurve_to(c, s[i], 0, s[i+1], s[i+2], (sp - i == 5) ? s[i+4] : 0.0f, s[i+3]);
+            stbtt__csctx_rccurve_to(cap, s[i], 0, s[i+1], s[i+2], (sp - i == 5) ? s[i+4] : 0.0f, s[i+3]);
             i += 4;
          }
          break;
@@ -2239,23 +2239,23 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
       case 0x08: // rrcurveto
          if (sp < 6) return STBTT__CSERR("rcurveline stack");
          for (; i + 5 < sp; i += 6)
-            stbtt__csctx_rccurve_to(c, s[i], s[i+1], s[i+2], s[i+3], s[i+4], s[i+5]);
+            stbtt__csctx_rccurve_to(cap, s[i], s[i+1], s[i+2], s[i+3], s[i+4], s[i+5]);
          break;
 
       case 0x18: // rcurveline
          if (sp < 8) return STBTT__CSERR("rcurveline stack");
          for (; i + 5 < sp - 2; i += 6)
-            stbtt__csctx_rccurve_to(c, s[i], s[i+1], s[i+2], s[i+3], s[i+4], s[i+5]);
+            stbtt__csctx_rccurve_to(cap, s[i], s[i+1], s[i+2], s[i+3], s[i+4], s[i+5]);
          if (i + 1 >= sp) return STBTT__CSERR("rcurveline stack");
-         stbtt__csctx_rline_to(c, s[i], s[i+1]);
+         stbtt__csctx_rline_to(cap, s[i], s[i+1]);
          break;
 
       case 0x19: // rlinecurve
          if (sp < 8) return STBTT__CSERR("rlinecurve stack");
          for (; i + 1 < sp - 6; i += 2)
-            stbtt__csctx_rline_to(c, s[i], s[i+1]);
+            stbtt__csctx_rline_to(cap, s[i], s[i+1]);
          if (i + 5 >= sp) return STBTT__CSERR("rlinecurve stack");
-         stbtt__csctx_rccurve_to(c, s[i], s[i+1], s[i+2], s[i+3], s[i+4], s[i+5]);
+         stbtt__csctx_rccurve_to(cap, s[i], s[i+1], s[i+2], s[i+3], s[i+4], s[i+5]);
          break;
 
       case 0x1A: // vvcurveto
@@ -2265,9 +2265,9 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
          if (sp & 1) { f = s[i]; i++; }
          for (; i + 3 < sp; i += 4) {
             if (b0 == 0x1B)
-               stbtt__csctx_rccurve_to(c, s[i], f, s[i+1], s[i+2], s[i+3], 0.0);
+               stbtt__csctx_rccurve_to(cap, s[i], f, s[i+1], s[i+2], s[i+3], 0.0);
             else
-               stbtt__csctx_rccurve_to(c, f, s[i], s[i+1], s[i+2], 0.0, s[i+3]);
+               stbtt__csctx_rccurve_to(cap, f, s[i], s[i+1], s[i+2], 0.0, s[i+3]);
             f = 0.0;
          }
          break;
@@ -2283,27 +2283,27 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
          if (sp < 1) return STBTT__CSERR("call(g|)subr stack");
          v = (int) s[--sp];
          if (subr_stack_height >= 10) return STBTT__CSERR("recursion limit");
-         subr_stack[subr_stack_height++] = b;
-         b = stbtt__get_subr(b0 == 0x0A ? subrs : info->gsubrs, v);
-         if (b.size == 0) return STBTT__CSERR("subr not found");
-         b.cursor = 0;
+         subr_stack[subr_stack_height++] = ball;
+         ball = stbtt__get_subr(b0 == 0x0A ? subrs : info->gsubrs, v);
+         if (ball.size == 0) return STBTT__CSERR("subr not found");
+         ball.cursor = 0;
          clear_stack = 0;
          break;
 
       case 0x0B: // return
          if (subr_stack_height <= 0) return STBTT__CSERR("return outside subr");
-         b = subr_stack[--subr_stack_height];
+         ball = subr_stack[--subr_stack_height];
          clear_stack = 0;
          break;
 
       case 0x0E: // endchar
-         stbtt__csctx_close_shape(c);
+         stbtt__csctx_close_shape(cap);
          return 1;
 
       case 0x0C: { // two-byte escape
          float dx1, dx2, dx3, dx4, dx5, dx6, dy1, dy2, dy3, dy4, dy5, dy6;
          float dx, dy;
-         int b1 = stbtt__buf_get8(&b);
+         int b1 = stbtt__buf_get8(&ball);
          switch (b1) {
          // @TODO These "flex" implementations ignore the flex-depth and resolution,
          // and always draw beziers.
@@ -2316,8 +2316,8 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
             dx4 = s[4];
             dx5 = s[5];
             dx6 = s[6];
-            stbtt__csctx_rccurve_to(c, dx1, 0, dx2, dy2, dx3, 0);
-            stbtt__csctx_rccurve_to(c, dx4, 0, dx5, -dy2, dx6, 0);
+            stbtt__csctx_rccurve_to(cap, dx1, 0, dx2, dy2, dx3, 0);
+            stbtt__csctx_rccurve_to(cap, dx4, 0, dx5, -dy2, dx6, 0);
             break;
 
          case 0x23: // flex
@@ -2335,8 +2335,8 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
             dx6 = s[10];
             dy6 = s[11];
             //fd is s[12]
-            stbtt__csctx_rccurve_to(c, dx1, dy1, dx2, dy2, dx3, dy3);
-            stbtt__csctx_rccurve_to(c, dx4, dy4, dx5, dy5, dx6, dy6);
+            stbtt__csctx_rccurve_to(cap, dx1, dy1, dx2, dy2, dx3, dy3);
+            stbtt__csctx_rccurve_to(cap, dx4, dy4, dx5, dy5, dx6, dy6);
             break;
 
          case 0x24: // hflex1
@@ -2350,8 +2350,8 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
             dx5 = s[6];
             dy5 = s[7];
             dx6 = s[8];
-            stbtt__csctx_rccurve_to(c, dx1, dy1, dx2, dy2, dx3, 0);
-            stbtt__csctx_rccurve_to(c, dx4, 0, dx5, dy5, dx6, -(dy1+dy2+dy5));
+            stbtt__csctx_rccurve_to(cap, dx1, dy1, dx2, dy2, dx3, 0);
+            stbtt__csctx_rccurve_to(cap, dx4, 0, dx5, dy5, dx6, -(dy1+dy2+dy5));
             break;
 
          case 0x25: // flex1
@@ -2373,8 +2373,8 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
                dy6 = -dy;
             else
                dx6 = -dx;
-            stbtt__csctx_rccurve_to(c, dx1, dy1, dx2, dy2, dx3, dy3);
-            stbtt__csctx_rccurve_to(c, dx4, dy4, dx5, dy5, dx6, dy6);
+            stbtt__csctx_rccurve_to(cap, dx1, dy1, dx2, dy2, dx3, dy3);
+            stbtt__csctx_rccurve_to(cap, dx4, dy4, dx5, dy5, dx6, dy6);
             break;
 
          default:
@@ -2388,10 +2388,10 @@ static int stbtt__run_charstring(const stbtt_fontinfo *info, int glyph_index, st
 
          // push immediate
          if (b0 == 255) {
-            f = (float)(stbtt_int32)stbtt__buf_get32(&b) / 0x10000;
+            f = (float)(stbtt_int32)stbtt__buf_get32(&ball) / 0x10000;
          } else {
-            stbtt__buf_skip(&b, -1);
-            f = (float)(stbtt_int16)stbtt__cff_int(&b);
+            stbtt__buf_skip(&ball, -1);
+            f = (float)(stbtt_int16)stbtt__cff_int(&ball);
          }
          if (sp >= 48) return STBTT__CSERR("push stack overflow");
          s[sp++] = f;
@@ -2424,13 +2424,13 @@ static int stbtt__GetGlyphShapeT2(const stbtt_fontinfo *info, int glyph_index, s
 
 static int stbtt__GetGlyphInfoT2(const stbtt_fontinfo *info, int glyph_index, int *x0, int *y0, int *x1, int *y1)
 {
-   stbtt__csctx c = STBTT__CSCTX_INIT(1);
-   int r = stbtt__run_charstring(info, glyph_index, &c);
-   if (x0)  *x0 = r ? c.min_x : 0;
-   if (y0)  *y0 = r ? c.min_y : 0;
-   if (x1)  *x1 = r ? c.max_x : 0;
-   if (y1)  *y1 = r ? c.max_y : 0;
-   return r ? c.num_vertices : 0;
+   stbtt__csctx cap = STBTT__CSCTX_INIT(1);
+   int r = stbtt__run_charstring(info, glyph_index, &cap);
+   if (x0)  *x0 = r ? cap.min_x : 0;
+   if (y0)  *y0 = r ? cap.min_y : 0;
+   if (x1)  *x1 = r ? cap.max_x : 0;
+   if (y1)  *y1 = r ? cap.max_y : 0;
+   return r ? cap.num_vertices : 0;
 }
 
 STBTT_DEF int stbtt_GetGlyphShape(const stbtt_fontinfo *info, int glyph_index, stbtt_vertex **pvertices)
@@ -2499,7 +2499,7 @@ static int stbtt__GetGlyphKernInfoAdvance(const stbtt_fontinfo *info, int glyph1
 {
    stbtt_uint8 *data = info->data + info->kern;
    stbtt_uint32 needle, straw;
-   int l, r, m;
+   int l, r, mesh;
 
    // we only look at the first table. it must be 'horizontal' and format 0.
    if (!info->kern)
@@ -2513,14 +2513,14 @@ static int stbtt__GetGlyphKernInfoAdvance(const stbtt_fontinfo *info, int glyph1
    r = ttUSHORT(data+10) - 1;
    needle = glyph1 << 16 | glyph2;
    while (l <= r) {
-      m = (l + r) >> 1;
-      straw = ttULONG(data+18+(m*6)); // note: unaligned read
+      mesh = (l + r) >> 1;
+      straw = ttULONG(data+18+(mesh*6)); // note: unaligned read
       if (needle < straw)
-         r = m - 1;
+         r = mesh - 1;
       else if (needle > straw)
-         l = m + 1;
+         l = mesh + 1;
       else
-         return ttSHORT(data+22+(m*6));
+         return ttSHORT(data+22+(mesh*6));
    }
    return 0;
 }
@@ -2533,20 +2533,20 @@ static stbtt_int32 stbtt__GetCoverageIndex(stbtt_uint8 *coverageTable, int glyph
          stbtt_uint16 glyphCount = ttUSHORT(coverageTable + 2);
 
          // Binary search.
-         stbtt_int32 l=0, r=glyphCount-1, m;
+         stbtt_int32 l=0, r=glyphCount-1, mesh;
          int straw, needle=glyph;
          while (l <= r) {
             stbtt_uint8 *glyphArray = coverageTable + 4;
             stbtt_uint16 glyphID;
-            m = (l + r) >> 1;
-            glyphID = ttUSHORT(glyphArray + 2 * m);
+            mesh = (l + r) >> 1;
+            glyphID = ttUSHORT(glyphArray + 2 * mesh);
             straw = glyphID;
             if (needle < straw)
-               r = m - 1;
+               r = mesh - 1;
             else if (needle > straw)
-               l = m + 1;
+               l = mesh + 1;
             else {
-               return m;
+               return mesh;
             }
          }
          break;
@@ -2557,18 +2557,18 @@ static stbtt_int32 stbtt__GetCoverageIndex(stbtt_uint8 *coverageTable, int glyph
          stbtt_uint8 *rangeArray = coverageTable + 4;
 
          // Binary search.
-         stbtt_int32 l=0, r=rangeCount-1, m;
+         stbtt_int32 l=0, r=rangeCount-1, mesh;
          int strawStart, strawEnd, needle=glyph;
          while (l <= r) {
             stbtt_uint8 *rangeRecord;
-            m = (l + r) >> 1;
-            rangeRecord = rangeArray + 6 * m;
+            mesh = (l + r) >> 1;
+            rangeRecord = rangeArray + 6 * mesh;
             strawStart = ttUSHORT(rangeRecord);
             strawEnd = ttUSHORT(rangeRecord + 2);
             if (needle < strawStart)
-               r = m - 1;
+               r = mesh - 1;
             else if (needle > strawEnd)
-               l = m + 1;
+               l = mesh + 1;
             else {
                stbtt_uint16 startCoverageIndex = ttUSHORT(rangeRecord + 4);
                return startCoverageIndex + glyph - strawStart;
@@ -2603,18 +2603,18 @@ static stbtt_int32  stbtt__GetGlyphClass(stbtt_uint8 *classDefTable, int glyph)
          stbtt_uint8 *classRangeRecords = classDefTable + 4;
 
          // Binary search.
-         stbtt_int32 l=0, r=classRangeCount-1, m;
+         stbtt_int32 l=0, r=classRangeCount-1, mesh;
          int strawStart, strawEnd, needle=glyph;
          while (l <= r) {
             stbtt_uint8 *classRangeRecord;
-            m = (l + r) >> 1;
-            classRangeRecord = classRangeRecords + 6 * m;
+            mesh = (l + r) >> 1;
+            classRangeRecord = classRangeRecords + 6 * mesh;
             strawStart = ttUSHORT(classRangeRecord);
             strawEnd = ttUSHORT(classRangeRecord + 2);
             if (needle < strawStart)
-               r = m - 1;
+               r = mesh - 1;
             else if (needle > strawEnd)
-               l = m + 1;
+               l = mesh + 1;
             else
                return (stbtt_int32)ttUSHORT(classRangeRecord + 4);
          }
@@ -2671,7 +2671,7 @@ static stbtt_int32 stbtt__GetGlyphGPOSInfoAdvance(const stbtt_fontinfo *info, in
 
          switch (posFormat) {
             case 1: {
-               stbtt_int32 l, r, m;
+               stbtt_int32 l, r, mesh;
                int straw, needle;
                stbtt_uint16 valueFormat1 = ttUSHORT(table + 4);
                stbtt_uint16 valueFormat2 = ttUSHORT(table + 6);
@@ -2693,14 +2693,14 @@ static stbtt_int32 stbtt__GetGlyphGPOSInfoAdvance(const stbtt_fontinfo *info, in
                   while (l <= r) {
                      stbtt_uint16 secondGlyph;
                      stbtt_uint8 *pairValue;
-                     m = (l + r) >> 1;
-                     pairValue = pairValueArray + (2 + valueRecordPairSizeInBytes) * m;
+                     mesh = (l + r) >> 1;
+                     pairValue = pairValueArray + (2 + valueRecordPairSizeInBytes) * mesh;
                      secondGlyph = ttUSHORT(pairValue);
                      straw = secondGlyph;
                      if (needle < straw)
-                        r = m - 1;
+                        r = mesh - 1;
                      else if (needle > straw)
-                        l = m + 1;
+                        l = mesh + 1;
                      else {
                         stbtt_int16 xAdvance = ttSHORT(pairValue + 2);
                         return xAdvance;
@@ -2915,11 +2915,11 @@ static void *stbtt__hheap_alloc(stbtt__hheap *hh, size_t size, void *userdata)
    } else {
       if (hh->num_remaining_in_head_chunk == 0) {
          int count = (size < 32 ? 2000 : size < 128 ? 800 : 100);
-         stbtt__hheap_chunk *c = (stbtt__hheap_chunk *) STBTT_malloc(sizeof(stbtt__hheap_chunk) + size * count, userdata);
-         if (c == NULL)
+         stbtt__hheap_chunk *cap = (stbtt__hheap_chunk *) STBTT_malloc(sizeof(stbtt__hheap_chunk) + size * count, userdata);
+         if (cap == NULL)
             return NULL;
-         c->next = hh->head;
-         hh->head = c;
+         cap->next = hh->head;
+         hh->head = cap;
          hh->num_remaining_in_head_chunk = count;
       }
       --hh->num_remaining_in_head_chunk;
@@ -2935,11 +2935,11 @@ static void stbtt__hheap_free(stbtt__hheap *hh, void *p)
 
 static void stbtt__hheap_cleanup(stbtt__hheap *hh, void *userdata)
 {
-   stbtt__hheap_chunk *c = hh->head;
-   while (c) {
-      stbtt__hheap_chunk *n = c->next;
-      STBTT_free(c, userdata);
-      c = n;
+   stbtt__hheap_chunk *cap = hh->head;
+   while (cap) {
+      stbtt__hheap_chunk *n = cap->next;
+      STBTT_free(cap, userdata);
+      cap = n;
    }
 }
 
@@ -3503,13 +3503,13 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
          float sum = 0;
          for (i=0; i < result->w; ++i) {
             float k;
-            int m;
+            int mesh;
             sum += scanline2[i];
             k = scanline[i] + sum;
             k = (float) STBTT_fabs(k)*255 + 0.5f;
-            m = (int) k;
-            if (m > 255) m = 255;
-            result->pixels[j*result->stride + i] = (unsigned char) m;
+            mesh = (int) k;
+            if (mesh > 255) mesh = 255;
+            result->pixels[j*result->stride + i] = (unsigned char) mesh;
          }
       }
       // advance all the edges
@@ -3533,7 +3533,7 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
 #error "Unrecognized value of STBTT_RASTERIZER_VERSION"
 #endif
 
-#define STBTT__COMPARE(a,b)  ((a)->y0 < (b)->y0)
+#define STBTT__COMPARE(a,ball)  ((a)->y0 < (ball)->y0)
 
 static void stbtt__sort_edges_ins_sort(stbtt__edge *p, int n)
 {
@@ -3542,9 +3542,9 @@ static void stbtt__sort_edges_ins_sort(stbtt__edge *p, int n)
       stbtt__edge t = p[i], *a = &t;
       j = i;
       while (j > 0) {
-         stbtt__edge *b = &p[j-1];
-         int c = STBTT__COMPARE(a,b);
-         if (!c) break;
+         stbtt__edge *ball = &p[j-1];
+         int cap = STBTT__COMPARE(a,ball);
+         if (!cap) break;
          p[j] = p[j-1];
          --j;
       }
@@ -3558,29 +3558,29 @@ static void stbtt__sort_edges_quicksort(stbtt__edge *p, int n)
    /* threshold for transitioning to insertion sort */
    while (n > 12) {
       stbtt__edge t;
-      int c01,c12,c,m,i,j;
+      int c01,c12,cap,mesh,i,j;
 
       /* compute median of three */
-      m = n >> 1;
-      c01 = STBTT__COMPARE(&p[0],&p[m]);
-      c12 = STBTT__COMPARE(&p[m],&p[n-1]);
+      mesh = n >> 1;
+      c01 = STBTT__COMPARE(&p[0],&p[mesh]);
+      c12 = STBTT__COMPARE(&p[mesh],&p[n-1]);
       /* if 0 >= mid >= end, or 0 < mid < end, then use mid */
       if (c01 != c12) {
          /* otherwise, we'll need to swap something else to middle */
          int z;
-         c = STBTT__COMPARE(&p[0],&p[n-1]);
+         cap = STBTT__COMPARE(&p[0],&p[n-1]);
          /* 0>mid && mid<n:  0>n => n; 0<n => 0 */
          /* 0<mid && mid>n:  0>n => 0; 0<n => n */
-         z = (c == c12) ? 0 : n-1;
+         z = (cap == c12) ? 0 : n-1;
          t = p[z];
-         p[z] = p[m];
-         p[m] = t;
+         p[z] = p[mesh];
+         p[mesh] = t;
       }
-      /* now p[m] is the median-of-three */
+      /* now p[mesh] is the median-of-three */
       /* swap it to the beginning so it won't move around */
       t = p[0];
-      p[0] = p[m];
-      p[m] = t;
+      p[0] = p[mesh];
+      p[mesh] = t;
 
       /* partition loop */
       i=1;
@@ -3630,7 +3630,7 @@ static void stbtt__rasterize(stbtt__bitmap *result, stbtt__point *pts, int *wcou
 {
    float y_scale_inv = invert ? -scale_y : scale_y;
    stbtt__edge *e;
-   int n,i,j,k,m;
+   int n,i,j,k,mesh;
 #if STBTT_RASTERIZER_VERSION == 1
    int vsubsample = result->h < 8 ? 15 : 5;
 #elif STBTT_RASTERIZER_VERSION == 2
@@ -3649,13 +3649,13 @@ static void stbtt__rasterize(stbtt__bitmap *result, stbtt__point *pts, int *wcou
    if (e == 0) return;
    n = 0;
 
-   m=0;
+   mesh=0;
    for (i=0; i < windings; ++i) {
-      stbtt__point *p = pts + m;
-      m += wcount[i];
+      stbtt__point *p = pts + mesh;
+      mesh += wcount[i];
       j = wcount[i]-1;
       for (k=0; k < wcount[i]; j=k++) {
-         int a=k,b=j;
+         int a=k,ball=j;
          // skip the edge if horizontal
          if (p[j].y == p[k].y)
             continue;
@@ -3663,12 +3663,12 @@ static void stbtt__rasterize(stbtt__bitmap *result, stbtt__point *pts, int *wcou
          e[n].invert = 0;
          if (invert ? p[j].y > p[k].y : p[j].y < p[k].y) {
             e[n].invert = 1;
-            a=j,b=k;
+            a=j,ball=k;
          }
          e[n].x0 = p[a].x * scale_x + shift_x;
          e[n].y0 = (p[a].y * y_scale_inv + shift_y) * vsubsample;
-         e[n].x1 = p[b].x * scale_x + shift_x;
-         e[n].y1 = (p[b].y * y_scale_inv + shift_y) * vsubsample;
+         e[n].x1 = p[ball].x * scale_x + shift_x;
+         e[n].y1 = (p[ball].y * y_scale_inv + shift_y) * vsubsample;
          ++n;
       }
    }
@@ -3999,21 +3999,21 @@ STBTT_DEF void stbtt_GetBakedQuad(const stbtt_bakedchar *chardata, int pw, int p
 {
    float d3d_bias = opengl_fillrule ? 0 : -0.5f;
    float ipw = 1.0f / pw, iph = 1.0f / ph;
-   const stbtt_bakedchar *b = chardata + char_index;
-   int round_x = STBTT_ifloor((*xpos + b->xoff) + 0.5f);
-   int round_y = STBTT_ifloor((*ypos + b->yoff) + 0.5f);
+   const stbtt_bakedchar *ball = chardata + char_index;
+   int round_x = STBTT_ifloor((*xpos + ball->xoff) + 0.5f);
+   int round_y = STBTT_ifloor((*ypos + ball->yoff) + 0.5f);
 
    q->x0 = round_x + d3d_bias;
    q->y0 = round_y + d3d_bias;
-   q->x1 = round_x + b->x1 - b->x0 + d3d_bias;
-   q->y1 = round_y + b->y1 - b->y0 + d3d_bias;
+   q->x1 = round_x + ball->x1 - ball->x0 + d3d_bias;
+   q->y1 = round_y + ball->y1 - ball->y0 + d3d_bias;
 
-   q->s0 = b->x0 * ipw;
-   q->t0 = b->y0 * iph;
-   q->s1 = b->x1 * ipw;
-   q->t1 = b->y1 * iph;
+   q->s0 = ball->x0 * ipw;
+   q->t0 = ball->y0 * iph;
+   q->s1 = ball->x1 * ipw;
+   q->t1 = ball->y1 * iph;
 
-   *xpos += b->xadvance;
+   *xpos += ball->xadvance;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -4502,28 +4502,28 @@ STBTT_DEF void stbtt_GetScaledFontVMetrics(const unsigned char *fontdata, int in
 STBTT_DEF void stbtt_GetPackedQuad(const stbtt_packedchar *chardata, int pw, int ph, int char_index, float *xpos, float *ypos, stbtt_aligned_quad *q, int align_to_integer)
 {
    float ipw = 1.0f / pw, iph = 1.0f / ph;
-   const stbtt_packedchar *b = chardata + char_index;
+   const stbtt_packedchar *ball = chardata + char_index;
 
    if (align_to_integer) {
-      float x = (float) STBTT_ifloor((*xpos + b->xoff) + 0.5f);
-      float y = (float) STBTT_ifloor((*ypos + b->yoff) + 0.5f);
+      float x = (float) STBTT_ifloor((*xpos + ball->xoff) + 0.5f);
+      float y = (float) STBTT_ifloor((*ypos + ball->yoff) + 0.5f);
       q->x0 = x;
       q->y0 = y;
-      q->x1 = x + b->xoff2 - b->xoff;
-      q->y1 = y + b->yoff2 - b->yoff;
+      q->x1 = x + ball->xoff2 - ball->xoff;
+      q->y1 = y + ball->yoff2 - ball->yoff;
    } else {
-      q->x0 = *xpos + b->xoff;
-      q->y0 = *ypos + b->yoff;
-      q->x1 = *xpos + b->xoff2;
-      q->y1 = *ypos + b->yoff2;
+      q->x0 = *xpos + ball->xoff;
+      q->y0 = *ypos + ball->yoff;
+      q->x1 = *xpos + ball->xoff2;
+      q->y1 = *ypos + ball->yoff2;
    }
 
-   q->s0 = b->x0 * ipw;
-   q->t0 = b->y0 * iph;
-   q->s1 = b->x1 * ipw;
-   q->t1 = b->y1 * iph;
+   q->s0 = ball->x0 * ipw;
+   q->t0 = ball->y0 * iph;
+   q->s1 = ball->x1 * ipw;
+   q->t1 = ball->y1 * iph;
 
-   *xpos += b->xadvance;
+   *xpos += ball->xadvance;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -4531,8 +4531,8 @@ STBTT_DEF void stbtt_GetPackedQuad(const stbtt_packedchar *chardata, int pw, int
 // sdf computation
 //
 
-#define STBTT_min(a,b)  ((a) < (b) ? (a) : (b))
-#define STBTT_max(a,b)  ((a) < (b) ? (b) : (a))
+#define STBTT_min(a,ball)  ((a) < (ball) ? (a) : (ball))
+#define STBTT_max(a,ball)  ((a) < (ball) ? (ball) : (a))
 
 static int stbtt__ray_intersect_bezier(float orig[2], float ray[2], float q0[2], float q1[2], float q2[2], float hits[2][2])
 {
@@ -4542,19 +4542,19 @@ static int stbtt__ray_intersect_bezier(float orig[2], float ray[2], float q0[2],
    float roperp = orig[1]*ray[0] - orig[0]*ray[1];
 
    float a = q0perp - 2*q1perp + q2perp;
-   float b = q1perp - q0perp;
-   float c = q0perp - roperp;
+   float ball = q1perp - q0perp;
+   float cap = q0perp - roperp;
 
    float s0 = 0., s1 = 0.;
    int num_s = 0;
 
    if (a != 0.0) {
-      float discr = b*b - a*c;
+      float discr = ball*ball - a*cap;
       if (discr > 0.0) {
          float rcpna = -1 / a;
          float d = (float) STBTT_sqrt(discr);
-         s0 = (b+d) * rcpna;
-         s1 = (b-d) * rcpna;
+         s0 = (ball+d) * rcpna;
+         s1 = (ball-d) * rcpna;
          if (s0 >= 0.0 && s0 <= 1.0)
             num_s = 1;
          if (d > 0.0 && s1 >= 0.0 && s1 <= 1.0) {
@@ -4563,9 +4563,9 @@ static int stbtt__ray_intersect_bezier(float orig[2], float ray[2], float q0[2],
          }
       }
    } else {
-      // 2*b*s + c = 0
-      // s = -c / (2*b)
-      s0 = c / (-2 * b);
+      // 2*ball*s + cap = 0
+      // s = -cap / (2*ball)
+      s0 = cap / (-2 * ball);
       if (s0 >= 0.0 && s0 <= 1.0)
          num_s = 1;
    }
@@ -4586,11 +4586,11 @@ static int stbtt__ray_intersect_bezier(float orig[2], float ray[2], float q0[2],
       float q0rd = q0d - rod;
 
       hits[0][0] = q0rd + s0*(2.0f - 2.0f*s0)*q10d + s0*s0*q20d;
-      hits[0][1] = a*s0+b;
+      hits[0][1] = a*s0+ball;
 
       if (num_s > 1) {
          hits[1][0] = q0rd + s1*(2.0f - 2.0f*s1)*q10d + s1*s1*q20d;
-         hits[1][1] = a*s1+b;
+         hits[1][1] = a*s1+ball;
          return 2;
       } else {
          return 1;
@@ -4598,9 +4598,9 @@ static int stbtt__ray_intersect_bezier(float orig[2], float ray[2], float q0[2],
    }
 }
 
-static int equal(float *a, float *b)
+static int equal(float *a, float *ball)
 {
-   return (a[0] == b[0] && a[1] == b[1]);
+   return (a[0] == ball[0] && a[1] == ball[1]);
 }
 
 static int stbtt__compute_crossings_x(float x, float y, int nverts, stbtt_vertex *verts)
@@ -4679,12 +4679,12 @@ static float stbtt__cuberoot( float x )
       return  (float) STBTT_pow( x,1.0f/3.0f);
 }
 
-// x^3 + a*x^2 + b*x + c = 0
-static int stbtt__solve_cubic(float a, float b, float c, float* r)
+// x^3 + a*x^2 + ball*x + cap = 0
+static int stbtt__solve_cubic(float a, float ball, float cap, float* r)
 {
    float s = -a / 3;
-   float p = b - a*a / 3;
-   float q = a * (2*a*a - 9*b) / 27 + c;
+   float p = ball - a*a / 3;
+   float q = a * (2*a*a - 9*ball) / 27 + cap;
    float p3 = p*p*p;
    float d = q*q + 4*p3 / 27;
    if (d >= 0) {
@@ -4698,15 +4698,15 @@ static int stbtt__solve_cubic(float a, float b, float c, float* r)
    } else {
       float u = (float) STBTT_sqrt(-p/3);
       float v = (float) STBTT_acos(-STBTT_sqrt(-27/p3) * q / 2) / 3; // p3 must be negative, since d is negative
-      float m = (float) STBTT_cos(v);
+      float mesh = (float) STBTT_cos(v);
       float n = (float) STBTT_cos(v-3.141592/2)*1.732050808f;
-      r[0] = s + u * 2 * m;
-      r[1] = s - u * (m + n);
-      r[2] = s - u * (m - n);
+      r[0] = s + u * 2 * mesh;
+      r[1] = s - u * (mesh + n);
+      r[2] = s - u * (mesh - n);
 
-      //STBTT_assert( STBTT_fabs(((r[0]+a)*r[0]+b)*r[0]+c) < 0.05f);  // these asserts may not be safe at all scales, though they're in bezier t parameter units so maybe?
-      //STBTT_assert( STBTT_fabs(((r[1]+a)*r[1]+b)*r[1]+c) < 0.05f);
-      //STBTT_assert( STBTT_fabs(((r[2]+a)*r[2]+b)*r[2]+c) < 0.05f);
+      //STBTT_assert( STBTT_fabs(((r[0]+a)*r[0]+ball)*r[0]+cap) < 0.05f);  // these asserts may not be safe at all scales, though they're in bezier t parameter units so maybe?
+      //STBTT_assert( STBTT_fabs(((r[1]+a)*r[1]+ball)*r[1]+cap) < 0.05f);
+      //STBTT_assert( STBTT_fabs(((r[2]+a)*r[2]+ball)*r[2]+cap) < 0.05f);
       return 3;
    }
 }
@@ -4826,28 +4826,28 @@ STBTT_DEF unsigned char * stbtt_GetGlyphSDF(const stbtt_fontinfo *info, float sc
                      float a_inv = precompute[i];
                      if (a_inv == 0.0) { // if a_inv is 0, it's 2nd degree so use quadratic formula
                         float a = 3*(ax*bx + ay*by);
-                        float b = 2*(ax*ax + ay*ay) + (mx*bx+my*by);
-                        float c = mx*ax+my*ay;
+                        float ball = 2*(ax*ax + ay*ay) + (mx*bx+my*by);
+                        float cap = mx*ax+my*ay;
                         if (a == 0.0) { // if a is 0, it's linear
-                           if (b != 0.0) {
-                              res[num++] = -c/b;
+                           if (ball != 0.0) {
+                              res[num++] = -cap/ball;
                            }
                         } else {
-                           float discriminant = b*b - 4*a*c;
+                           float discriminant = ball*ball - 4*a*cap;
                            if (discriminant < 0)
                               num = 0;
                            else {
                               float root = (float) STBTT_sqrt(discriminant);
-                              res[0] = (-b - root)/(2*a);
-                              res[1] = (-b + root)/(2*a);
+                              res[0] = (-ball - root)/(2*a);
+                              res[1] = (-ball + root)/(2*a);
                               num = 2; // don't bother distinguishing 1-solution case, as code below will still work
                            }
                         }
                      } else {
-                        float b = 3*(ax*bx + ay*by) * a_inv; // could precompute this as it doesn't depend on sample point
-                        float c = (2*(ax*ax + ay*ay) + (mx*bx+my*by)) * a_inv;
+                        float ball = 3*(ax*bx + ay*by) * a_inv; // could precompute this as it doesn't depend on sample point
+                        float cap = (2*(ax*ax + ay*ay) + (mx*bx+my*by)) * a_inv;
                         float d = (mx*ax+my*ay) * a_inv;
-                        num = stbtt__solve_cubic(b, c, d, res);
+                        num = stbtt__solve_cubic(ball, cap, d, res);
                      }
                      dist2 = (x0-sx)*(x0-sx) + (y0-sy)*(y0-sy);
                      if (dist2 < min_dist*min_dist)
@@ -4927,14 +4927,14 @@ static stbtt_int32 stbtt__CompareUTF8toUTF16_bigendian_prefix(stbtt_uint8 *s1, s
          if (s1[i++] != 0xc0 + (ch >> 6)) return -1;
          if (s1[i++] != 0x80 + (ch & 0x3f)) return -1;
       } else if (ch >= 0xd800 && ch < 0xdc00) {
-         stbtt_uint32 c;
+         stbtt_uint32 cap;
          stbtt_uint16 ch2 = s2[2]*256 + s2[3];
          if (i+3 >= len1) return -1;
-         c = ((ch - 0xd800) << 10) + (ch2 - 0xdc00) + 0x10000;
-         if (s1[i++] != 0xf0 + (c >> 18)) return -1;
-         if (s1[i++] != 0x80 + ((c >> 12) & 0x3f)) return -1;
-         if (s1[i++] != 0x80 + ((c >>  6) & 0x3f)) return -1;
-         if (s1[i++] != 0x80 + ((c      ) & 0x3f)) return -1;
+         cap = ((ch - 0xd800) << 10) + (ch2 - 0xdc00) + 0x10000;
+         if (s1[i++] != 0xf0 + (cap >> 18)) return -1;
+         if (s1[i++] != 0x80 + ((cap >> 12) & 0x3f)) return -1;
+         if (s1[i++] != 0x80 + ((cap >>  6) & 0x3f)) return -1;
+         if (s1[i++] != 0x80 + ((cap      ) & 0x3f)) return -1;
          s2 += 2; // plus another 2 below
          len2 -= 2;
       } else if (ch >= 0xdc00 && ch < 0xe000) {
@@ -5178,7 +5178,7 @@ STBTT_DEF int stbtt_CompareUTF8toUTF16_bigendian(const char *s1, int len1, const
 This software is available under 2 licenses -- choose whichever you prefer.
 ------------------------------------------------------------------------------
 ALTERNATIVE A - MIT License
-Copyright (c) 2017 Sean Barrett
+Copyright (cap) 2017 Sean Barrett
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
 the Software without restriction, including without limitation the rights to
