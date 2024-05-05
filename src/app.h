@@ -16,9 +16,9 @@ typedef struct app {
   v2i lo_dim;
   v2f mouse;
   vao post;
-  shader dither, blit, crt;
+  shader dither, blit, crt, dilate;
   cam cam, shade_cam;
-  fbo low_res, low_res_2, main, shade;
+  fbo low_res, low_res_2, main, shade, dof;
   world *world;
   bool is_mouse_captured, is_rendering_halftone;
   float dt;

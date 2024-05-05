@@ -37,6 +37,4 @@ void main() {
   f_color.rgb *= (sin(uv525.y * 3.1415926 / 2.f) * 0.3 + 1.);
 
   f_color.a = 1;
-
-//  f_color = texture(u_tex0, v_uv);
 }

@@ -212,6 +212,21 @@ typedef struct blit {
 
 void blit_up(shader *s, blit args);
 
+typedef struct dof {
+  // non owning!
+  tex *tex;
+  int tex_unit;
+
+  tex *depth;
+  int depth_unit;
+
+  int size;
+  float separation, min_depth, max_depth;
+  v2f screen_size;
+} dof;
+
+void dof_up(shader *s, dof args);
+
 typedef struct crt {
   // non owning!
   tex *tex;

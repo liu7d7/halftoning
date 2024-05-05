@@ -42,6 +42,8 @@ m4f cam_get_look(cam *c) {
   return m4_look(v3_sub(c->pos, v3_mul(c->front, c->dist)), c->front, c->up);
 }
 
+float const cam_near = 0.01f, cam_far = 1.41421356f * 0.5f * chunk_size * world_draw_dist;
+
 m4f cam_get_proj(cam *c) {
   if (c->shade) {
     return m4_ortho(-c->ortho_size / 2.f * c->aspect,
@@ -49,8 +51,7 @@ m4f cam_get_proj(cam *c) {
                     -c->ortho_size / 2.f, -256.f,
                     256.f);
   } else {
-    return m4_persp(rad(c->zoom), c->aspect, 0.01f,
-                    sqrtf(2.f) * 0.5f * chunk_size * world_draw_dist);
+    return m4_persp(rad(c->zoom), c->aspect, cam_near, cam_far);
   }
 }
 
@@ -220,7 +221,7 @@ int attrib_get_size_in_bytes(attrib *attr) {
 }
 
 tex_spec tex_spec_invalid() {
-  return (tex_spec){0};
+  return (tex_spec){};
 }
 
 tex_spec tex_spec_rgba8(int width, int height, int filter) {
@@ -675,7 +676,7 @@ void cam_rot(cam *c) {
   c->vp = m4_mul(look, proj);
 
   float const overshoot_dist = 1.33f;
-  float const overshoot_fov = 1.25f;
+  float const overshoot_fov = 1.33f;
 
   look = m4_look(v3_sub(c->pos, v3_mul(c->front, c->dist * overshoot_dist)), c->front,
                  c->up);
@@ -820,7 +821,7 @@ int cam_test_box(cam *c, box3 b) {
     {b.max.x, b.max.y, b.max.z, 1.0f}, // X Y Z
   };
 
-  int inside = false;
+  int inside = 0;
 
   for (size_t corner_idx = 0; corner_idx < 8 && !inside; corner_idx++) {
     // Transform vertex
@@ -828,11 +829,26 @@ int cam_test_box(cam *c, box3 b) {
     // Check vertex against clip space bounds
 #define within(a, v, b) ((a) <= (v) && (v) <= (b))
     inside = inside |
-             within(-corner.w, corner.x, corner.w) &&
-             within(-corner.w, corner.y, corner.w) &&
+             within(-corner.w, corner.x, corner.w) &
+             within(-corner.w, corner.y, corner.w) &
              within(0.0f, corner.z, corner.w);
 #undef within
   }
 
   return inside;
+}
+
+void dof_up(shader *s, dof args) {
+  shader_bind(s);
+  tex_bind(args.tex, args.tex_unit);
+  tex_bind(args.depth, args.depth_unit);
+  shader_int(s, "u_tex", args.tex_unit);
+  shader_vec2(s, "u_tex_size", (v2f){1.f / args.screen_size.x, 1.f / args.screen_size.y});
+  shader_int(s, "u_depth", args.depth_unit);
+  shader_int(s, "u_size", args.size);
+  shader_float(s, "u_min_depth", args.min_depth);
+  shader_float(s, "u_max_depth", args.max_depth);
+  shader_float(s, "u_separation", args.separation);
+  shader_float(s, "u_near", cam_near);
+  shader_float(s, "u_far", cam_far);
 }
