@@ -6,12 +6,12 @@
 
 cam
 cam_new(v3f pos, v3f world_up, float yaw, float pitch, float aspect) {
-  const float default_speed = 2.5f, default_sens = 0.1f, default_zoom = 45.0f;
+  const float default_zoom = 45.0f;
 
   cam c = {
     .front = {0, 0, -1},
     .yaw = yaw, .pitch = pitch, .target_pitch = pitch, .target_yaw = yaw,
-    .speed = default_speed, .sens = default_sens, .zoom = default_zoom,
+    .zoom = default_zoom, .dist = 10,
     .has_last = 0,
     .aspect = aspect,
     .pos = pos,
@@ -39,12 +39,19 @@ void cam_tick(cam *c, app *a) {
 }
 
 m4f cam_get_look(cam *c) {
-  return m4_look(v3_sub(c->pos, v3_mul(c->front, 10.f)), c->front, c->up);
+  return m4_look(v3_sub(c->pos, v3_mul(c->front, c->dist)), c->front, c->up);
 }
 
 m4f cam_get_proj(cam *c) {
-  return m4_persp(rad(c->zoom), c->aspect, 0.01f,
-                  sqrtf(2.f) * 0.5f * chunk_size * world_draw_dist);
+  if (c->shade) {
+    return m4_ortho(-c->ortho_size / 2.f * c->aspect,
+                    c->ortho_size / 2.f * c->aspect, c->ortho_size / 2.f,
+                    -c->ortho_size / 2.f, -256.f,
+                    256.f);
+  } else {
+    return m4_persp(rad(c->zoom), c->aspect, 0.01f,
+                    sqrtf(2.f) * 0.5f * chunk_size * world_draw_dist);
+  }
 }
 
 void shader_verify(uint gl_id) {
@@ -112,7 +119,8 @@ struct vao vao_new(buf *vbo, buf *ibo, uint n, attrib *attrs) {
     stride += a.size * (int)(a.type == GL_INT ? sizeof(int) : sizeof(float));
   }
 
-  struct vao v = {.id = 0, .n_attrs = n, .attrs = malloc(sizeof(attrib) * n), .stride = stride};
+  struct vao v = {.id = 0, .n_attrs = n, .attrs = malloc(
+    sizeof(attrib) * n), .stride = stride};
   memcpy(v.attrs, attrs, sizeof(attrib) * n);
   gl_create_vertex_arrays(1, &v.id);
 
@@ -143,6 +151,11 @@ buf buf_new(uint type) {
   gl_create_buffers(1, &b.id);
 
   return b;
+}
+
+void *buf_rw(buf *b, size_t size) {
+  gl_named_buffer_storage(b->id, size, NULL, GL_DYNAMIC_STORAGE_BIT);
+  return gl_map_named_buffer(b->id, GL_READ_WRITE);
 }
 
 void buf_data_n(buf *b, uint usage, ssize_t elem_size, ssize_t n,
@@ -261,8 +274,13 @@ tex tex_new(tex_spec spec) {
                                       spec.height, true);
   } else {
     gl_create_textures(GL_TEXTURE_2D, 1, &t.id);
-    gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+    if (spec.format == GL_DEPTH_COMPONENT) {
+      gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+      gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    } else {
+      gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+      gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+    }
     gl_texture_parameteri(t.id, GL_TEXTURE_MIN_FILTER, spec.min_filter);
     gl_texture_parameteri(t.id, GL_TEXTURE_MAG_FILTER, spec.mag_filter);
     gl_texture_storage_2d(t.id, 1, spec.internal_format, spec.width,
@@ -425,7 +443,8 @@ void dither_up(shader *s, dither args) {
 }
 
 mesh
-mod_load_mesh(mod *m, lmap *mats, struct aiMesh *mesh, const struct aiScene *scene) {
+mod_load_mesh(mod *m, lmap *mats, box3 *b, struct aiMesh *mesh,
+              const struct aiScene *scene) {
   obj_vtx *vtxs = malloc(sizeof(obj_vtx) * mesh->mNumVertices);
 
   char *name = mesh->mName.data;
@@ -439,6 +458,8 @@ mod_load_mesh(mod *m, lmap *mats, struct aiMesh *mesh, const struct aiScene *sce
     v3f pos = *(v3f *)&mesh->mVertices[i], norm = *(v3f *)&mesh->mNormals[i];
 
     vtxs[i] = (obj_vtx){pos, norm};
+    b->min = v3_min(b->min, vtxs[i].pos);
+    b->max = v3_max(b->max, vtxs[i].pos);
   }
 
   buf vbo = buf_new(GL_ARRAY_BUFFER), ibo = buf_new(GL_ELEMENT_ARRAY_BUFFER);
@@ -476,14 +497,16 @@ mod_load_mesh(mod *m, lmap *mats, struct aiMesh *mesh, const struct aiScene *sce
   return me;
 }
 
-void mod_load(mod *m, lmap *mats, struct aiNode *node, const struct aiScene *scene) {
+void
+mod_load(mod *m, lmap *mats, box3 *b, struct aiNode *node,
+         const struct aiScene *scene) {
   for (int i = 0; i < node->mNumMeshes; i++) {
     struct aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-    m->meshes[m->n_meshes++] = mod_load_mesh(m, mats, mesh, scene);
+    m->meshes[m->n_meshes++] = mod_load_mesh(m, mats, b, mesh, scene);
   }
 
   for (int i = 0; i < node->mNumChildren; i++) {
-    mod_load(m, mats, node->mChildren[i], scene);
+    mod_load(m, mats, b, node->mChildren[i], scene);
   }
 }
 
@@ -510,7 +533,9 @@ lmap mod_load_mtl(char const *path) {
   char name[64];
   while (fgets(line, 256, f)) {
     mtl mat;
-    int r = sscanf(line, "%63s %u %u %f %f %f %f %d", name, &mat.dark, &mat.light, &mat.light_model.x, &mat.light_model.y, &mat.light_model.z, &mat.shine, &mat.cull);
+    int r = sscanf(line, "%63s %u %u %f %f %f %f %d", name, &mat.dark,
+                   &mat.light, &mat.light_model.x, &mat.light_model.y,
+                   &mat.light_model.z, &mat.shine, &mat.cull);
     if (r < 8) {
       fprintf(stderr, "problem! %s in ", line);
       throw_c("mod_load_mtl: failed to parse mtl!");
@@ -526,59 +551,48 @@ lmap mod_load_mtl(char const *path) {
   return mats;
 }
 
-mod mod_new(const char *path) {
-  struct aiScene const *scene =
-    aiImportFile(path,
-                 aiProcess_CalcTangentSpace
-                 | aiProcess_Triangulate
-                 | aiProcess_JoinIdenticalVertices);
-
+mod mod_from_scene(struct aiScene const *scene, const char *path) {
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
       !scene->mRootNode) {
     throw_c(aiGetErrorString());
   }
 
   mod m = {
-    .meshes = malloc(sizeof(mesh) * scene->mNumMeshes)
+    .meshes = malloc(sizeof(mesh) * scene->mNumMeshes),
   };
 
   lmap mats = mod_load_mtl(path);
 
-  mod_load(&m, &mats, scene->mRootNode, scene);
+  float large = 1e20f;
+  box3 b = box3_new((v3f){large, large, large}, (v3f){-large, -large, -large});
+
+  mod_load(&m, &mats, &b, scene->mRootNode, scene);
+  m.bounds = b;
 
   aiReleaseImport(scene);
 
   return m;
+}
+
+mod mod_new(const char *path) {
+  struct aiScene const *scene =
+    aiImportFile(path,
+                 aiProcessPreset_TargetRealtime_Fast);
+
+  return mod_from_scene(scene, path);
 }
 
 mod mod_new_mem(const char *mem, size_t len, const char *path) {
   struct aiScene const *scene =
     aiImportFileFromMemory(mem, len,
-                 aiProcess_CalcTangentSpace
-                 | aiProcess_Triangulate
-                 | aiProcess_JoinIdenticalVertices, "obj");
+                           aiProcessPreset_TargetRealtime_Fast, "obj");
 
-  if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
-      !scene->mRootNode) {
-    throw_c(aiGetErrorString());
-  }
-
-  mod m = {
-    .meshes = malloc(sizeof(mesh) * scene->mNumMeshes)
-  };
-
-  lmap mats = mod_load_mtl(path);
-
-  mod_load(&m, &mats, scene->mRootNode, scene);
-
-  aiReleaseImport(scene);
-
-  return m;
+  return mod_from_scene(scene, path);
 }
 
-void mod_draw(mod *m, cam *c, m4f t) {
+void mod_draw(mod *m, draw_src s, cam *c, m4f t) {
   for (int i = 0; i < m->n_meshes; i++) {
-    mod_get_sh(c, m->meshes[i].mat, t);
+    mod_get_sh(s, c, m->meshes[i].mat, t);
     (m->meshes[i].mat.cull ? gl_enable : gl_disable)(GL_CULL_FACE);
 
     vao_bind(&m->meshes[i].vao);
@@ -588,15 +602,24 @@ void mod_draw(mod *m, cam *c, m4f t) {
   gl_disable(GL_CULL_FACE);
 }
 
-shader *mod_get_sh(cam *c, mtl m, m4f t) {
-  static shader *sh = NULL;
-  if (!sh) {
-    sh = objdup(shader_new(2,
-                           (shader_spec[]){
-                             {GL_VERTEX_SHADER,   "res/mod.vsh"},
-                             {GL_FRAGMENT_SHADER, "res/mod_light.fsh"},
-                           }));
+shader *mod_get_sh(draw_src s, cam *c, mtl m, m4f t) {
+  static shader *cam = NULL;
+  static shader *shade = NULL;
+  if (!cam) {
+    cam = objdup(shader_new(2,
+                            (shader_spec[]){
+                              {GL_VERTEX_SHADER,   "res/mod.vsh"},
+                              {GL_FRAGMENT_SHADER, "res/mod_light.fsh"},
+                            }));
+
+    shade = objdup(shader_new(2,
+                              (shader_spec[]){
+                                {GL_VERTEX_SHADER,   "res/mod_depth.vsh"},
+                                {GL_FRAGMENT_SHADER, "res/mod_depth.fsh"},
+                              }));
   }
+
+  shader *cur = s == ds_cam ? cam : shade;
 
   m4f t_no_scale = t;
 
@@ -606,19 +629,17 @@ shader *mod_get_sh(cam *c, mtl m, m4f t) {
     t_no_scale.v[i][0] = a.v[0], t_no_scale.v[i][1] = a.v[1], t_no_scale.v[i][2] = a.v[2];
   }
 
-  m4f proj = cam_get_proj(c), look = cam_get_look(c);
-  shader_mat4(sh, "u_proj", proj);
-  shader_mat4(sh, "u_look", look);
-  shader_vec3(sh, "u_eye", c->pos);
-  shader_vec3(sh, "u_light_model", m.light_model);
-  shader_vec3(sh, "u_light", dreamy_haze[m.light]);
-  shader_vec3(sh, "u_dark", dreamy_haze[m.dark]);
-  shader_float(sh, "u_shine", m.shine);
-  shader_mat4(sh, "u_model", t);
-  shader_mat4(sh, "u_model_no_scale", t_no_scale);
-  shader_bind(sh);
+  shader_mat4(cur, "u_vp", c->vp);
+  shader_vec3(cur, "u_eye", c->pos);
+  shader_vec3(cur, "u_light_model", m.light_model);
+  shader_vec3(cur, "u_light", dreamy_haze[m.light]);
+  shader_vec3(cur, "u_dark", dreamy_haze[m.dark]);
+  shader_float(cur, "u_shine", m.shine);
+  shader_mat4(cur, "u_model", t);
+  shader_mat4(cur, "u_model_no_scale", t_no_scale);
+  shader_bind(cur);
 
-  return sh;
+  return cur;
 }
 
 void cam_rot(cam *c) {
@@ -648,6 +669,19 @@ void cam_rot(cam *c) {
 
   v3f up = v3_cross(right, front);
   c->up = up;
+
+  m4f look = cam_get_look(c);
+  m4f proj = cam_get_proj(c);
+  c->vp = m4_mul(look, proj);
+
+  float const overshoot_dist = 1.33f;
+  float const overshoot_fov = 1.25f;
+
+  look = m4_look(v3_sub(c->pos, v3_mul(c->front, c->dist * overshoot_dist)), c->front,
+                 c->up);
+  proj = m4_persp(rad(c->zoom * overshoot_fov), c->aspect * overshoot_fov, 0.01f,
+                  sqrtf(2.f) * 0.5f * chunk_size * world_draw_dist * overshoot_dist);
+  c->cvp = m4_mul(look, proj);
 }
 
 int *quad_indices(int w, int h) {
@@ -670,7 +704,8 @@ void imod_opti_vao(vao *v, buf *model) {
   gl_vertex_array_vertex_buffer(v->id, 1, model->id, 0, sizeof(m4f));
   for (int i = 0; i < 4; i++) {
     gl_enable_vertex_array_attrib(v->id, v->n_attrs + i);
-    gl_vertex_array_attrib_format(v->id, v->n_attrs + i, 4, GL_FLOAT, GL_FALSE, i * sizeof(v4f));
+    gl_vertex_array_attrib_format(v->id, v->n_attrs + i, 4, GL_FLOAT, GL_FALSE,
+                                  i * sizeof(v4f));
     gl_vertex_array_attrib_binding(v->id, v->n_attrs + i, 1);
   }
 
@@ -691,6 +726,7 @@ imod *imod_new(mod m) {
     .texes = m.texes,
     .model = arr_new(m4f, 4),
     .model_buf = buf_new(GL_ARRAY_BUFFER),
+    .bounds = m.bounds
   };
 
   for (int i = 0; i < m.n_meshes; i++) {
@@ -705,7 +741,7 @@ imod *imod_new(mod m) {
   return p;
 }
 
-void imod_draw(cam *c) {
+void imod_draw(draw_src s, cam *c) {
   if (!all_imods) return;
 
   for (imod **mp = all_imods, **end = arr_end(all_imods); mp != end; mp++) {
@@ -716,11 +752,12 @@ void imod_draw(cam *c) {
     buf_data_n(&m->model_buf, GL_DYNAMIC_DRAW, sizeof(m4f), count, m->model);
 
     for (int i = 0; i < m->n_meshes; i++) {
-      imod_get_sh(c, m->meshes[i].mat);
+      imod_get_sh(s, c, m->meshes[i].mat);
       (m->meshes[i].mat.cull ? gl_enable : gl_disable)(GL_CULL_FACE);
 
       vao_bind(&m->meshes[i].vao);
-      gl_draw_elements_instanced(GL_TRIANGLES, m->meshes[i].n_inds, GL_UNSIGNED_INT, 0, count);
+      gl_draw_elements_instanced(GL_TRIANGLES, m->meshes[i].n_inds,
+                                 GL_UNSIGNED_INT, 0, count);
     }
 
     arr_clear(m->model);
@@ -734,24 +771,32 @@ void imod_add(imod *m, m4f t) {
   arr_add(&m->model, &t_tpose);
 }
 
-shader *imod_get_sh(cam *c, mtl m) {
-  static shader *sh = NULL;
-  if (!sh) {
-    sh = objdup(shader_new(2, (shader_spec[]){
+shader *imod_get_sh(draw_src s, cam *c, mtl m) {
+  static shader *cam = NULL;
+  static shader *shade = NULL;
+  if (!cam) {
+    cam = objdup(shader_new(2, (shader_spec[]){
       GL_VERTEX_SHADER, "res/imod.vsh",
       GL_FRAGMENT_SHADER, "res/mod_light.fsh"
     }));
+
+    shade = objdup(shader_new(2, (shader_spec[]){
+      GL_VERTEX_SHADER, "res/imod_depth.vsh",
+      GL_FRAGMENT_SHADER, "res/mod_depth.fsh"
+    }));
   }
 
-  m4f proj = cam_get_proj(c), look = cam_get_look(c);
-  shader_mat4(sh, "u_proj", proj);
-  shader_mat4(sh, "u_look", look);
-  shader_vec3(sh, "u_eye", c->pos);
-  shader_vec3(sh, "u_light_model", m.light_model);
-  shader_vec3(sh, "u_light", dreamy_haze[m.light]);
-  shader_vec3(sh, "u_dark", dreamy_haze[m.dark]);
-  shader_float(sh, "u_shine", m.shine);
-  shader_bind(sh);
+  shader *cur = s == ds_cam ? cam : shade;
+
+  shader_mat4(cur, "u_vp", c->vp);
+  shader_vec3(cur, "u_eye", c->pos);
+  shader_vec3(cur, "u_light_model", m.light_model);
+  shader_vec3(cur, "u_light", dreamy_haze[m.light]);
+  shader_vec3(cur, "u_dark", dreamy_haze[m.dark]);
+  shader_float(cur, "u_shine", m.shine);
+  shader_bind(cur);
+
+  return cur;
 }
 
 void crt_up(shader *s, crt args) {
@@ -760,4 +805,34 @@ void crt_up(shader *s, crt args) {
   shader_int(s, "u_tex0", args.unit);
   shader_float(s, "u_aspect", args.aspect);
   shader_float(s, "u_lores", args.lores);
+}
+
+int cam_test_box(cam *c, box3 b) {
+  v4f corners[8] = {
+    {b.min.x, b.min.y, b.min.z, 1.0f}, // x y z
+    {b.max.x, b.min.y, b.min.z, 1.0f}, // X y z
+    {b.min.x, b.max.y, b.min.z, 1.0f}, // x Y z
+    {b.max.x, b.max.y, b.min.z, 1.0f}, // X Y z
+
+    {b.min.x, b.min.y, b.max.z, 1.0f}, // x y Z
+    {b.max.x, b.min.y, b.max.z, 1.0f}, // X y Z
+    {b.min.x, b.max.y, b.max.z, 1.0f}, // x Y Z
+    {b.max.x, b.max.y, b.max.z, 1.0f}, // X Y Z
+  };
+
+  int inside = false;
+
+  for (size_t corner_idx = 0; corner_idx < 8 && !inside; corner_idx++) {
+    // Transform vertex
+    v4f corner = v4_mul_m(corners[corner_idx], c->cvp);
+    // Check vertex against clip space bounds
+#define within(a, v, b) ((a) <= (v) && (v) <= (b))
+    inside = inside |
+             within(-corner.w, corner.x, corner.w) &&
+             within(-corner.w, corner.y, corner.w) &&
+             within(0.0f, corner.z, corner.w);
+#undef within
+  }
+
+  return inside;
 }

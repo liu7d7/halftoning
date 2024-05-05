@@ -17,6 +17,11 @@ inline static box3 box3_fit(box3 a, box3 b) {
 }
 
 [[gnu::always_inline]]
+inline static box3 box3_add(box3 a, v3f b) {
+  return box3_new(v3_add(a.min, b), v3_add(a.max, b));
+}
+
+[[gnu::always_inline]]
 inline static bool box3_overlaps(box3 a, box3 b) {
 #define overlaps(x_min0, x_min1, x_max0, x_max1) (x_max0 >= x_min1 && x_max1 >= x_min0)
   return overlaps(a.min.x, b.min.x, a.max.x, b.max.x)

@@ -67,7 +67,7 @@ lmap lmap_resize(lmap *l, size_t new_size) {
   return new;
 }
 
-void lmap_add(lmap *l, void *key, void *val) {
+void *lmap_add(lmap *l, void *key, void *val) {
   if (l->count > l->cap * l->load_factor) {
     *l = lmap_resize(l, l->cap * 2);
   }
@@ -77,6 +77,8 @@ void lmap_add(lmap *l, void *key, void *val) {
 
   lmap_add_idx(l, arr_len(l->keys) - 1);
   l->count++;
+
+  return l->vals + arr_len(l->vals) * l->val_size - l->val_size;
 }
 
 void *lmap_at(lmap *l, void *key) {

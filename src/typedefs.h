@@ -193,6 +193,12 @@ inline static v2i iv2_add(v2i lhs, v2i rhs) {
 
 [[gnu::always_inline]]
 
+inline static bool iv2_eq(v2i lhs, v2i rhs) {
+  return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+
+[[gnu::always_inline]]
+
 inline static v2i iv2_sub(v2i lhs, v2i rhs) {
   return (v2i){lhs.x - rhs.x, lhs.y - rhs.y};
 }
@@ -446,6 +452,15 @@ inline static m4f m4_trans(float x, float y, float z) {
 }
 
 [[gnu::always_inline]]
+inline static v4f v4_mul_m(v4f v, m4f mat) {
+  return (v4f){
+    v.x * mat._00 + v.y * mat._10 + v.z * mat._20 + mat._30,
+    v.x * mat._01 + v.y * mat._11 + v.z * mat._21 + mat._31,
+    v.x * mat._02 + v.y * mat._12 + v.z * mat._22 + mat._32,
+    v.x * mat._03 + v.y * mat._13 + v.z * mat._23 + mat._33};
+}
+
+[[gnu::always_inline]]
 
 inline static m4f m4_trans_v(v3f p) {
   return m4_trans(p.x, p.y, p.z);
@@ -627,7 +642,7 @@ static uint32_t iv2_hash(void *key) {
   return hash_murmur3(key, sizeof(v2i));
 }
 
-static bool iv2_eq(void *_lhs, void *_rhs) {
+static bool iv2_peq(void *_lhs, void *_rhs) {
   return memcmp(_lhs, _rhs, sizeof(v2i)) == 0;
 }
 
@@ -646,4 +661,16 @@ static uint32_t str_hash(void *key) {
 static bool str_eq(void *_lhs, void *_rhs) {
   char const **lhs = _lhs, **rhs = _rhs;
   return strcmp(*lhs, *rhs) == 0;
+}
+
+[[gnu::always_inline]]
+inline float rndf(float min, float max) {
+  float d = (float)rand() / (float)RAND_MAX;
+  return min + d * (max - min);
+}
+
+[[gnu::always_inline]]
+inline int rndi(int min, int max) {
+  if (min == max) return min;
+  return min + rand() % (max - min);
 }

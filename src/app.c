@@ -3,6 +3,7 @@
 #include "gl.h"
 #include "world.h"
 #include "gui.h"
+#include <time.h>
 #include "windows.h"
 #include "pal.h"
 #include <pthread.h>
@@ -10,6 +11,8 @@
 /*-- app --*/
 
 float const low_res = 480.f;
+float const shade_aspect = 1.5f;
+v2i const shade_dim = (v2i){(int)(8192 * shade_aspect), 8192};
 app the_app;
 
 app app_new(int width, int height, const char *name) {
@@ -36,7 +39,7 @@ app app_new(int width, int height, const char *name) {
   glfw_set_cursor_pos_callback(win, cursor_pos_callback);
   glfw_set_key_callback(win, key_callback);
   glfw_set_mouse_button_callback(win, mouse_button_callback);
-  glfw_swap_interval(1);
+  glfw_swap_interval(0);
 
   if (!glad_load_gl_loader((GLADloadproc)glfw_get_proc_address)) {
     throw_c("Failed to load GLAD!");
@@ -56,13 +59,19 @@ app app_new(int width, int height, const char *name) {
                {0, 0},
              });
 
+  v2i lo_dim = (v2i){(int)(low_res * (float)width / (float)height),
+                     (int)low_res};
+
   return (app){
     .glfw_win = win,
     .dim = {(float)width, (float)height},
+    .lo_dim = lo_dim,
     .is_mouse_captured = true,
     .post = vao_new(&post_vbo, NULL, 1, (attrib[]){attr_2f}),
     .cam = cam_new((v3f){0.f, 20.f, 0.f}, (v3f){0.f, 1.f, 0.f}, 225.f, -30.f,
                    (float)width / (float)height),
+    .shade_cam = cam_new((v3f){0.f, 20.f, 0.f}, (v3f){0.f, 1.f, 0.f}, 45.f,
+                         -54.7356103172f, shade_aspect),
     .main = fbo_new(2,
                     (fbo_spec[]){
                       {GL_COLOR_ATTACHMENT0, tex_spec_rgba8(width, height,
@@ -70,14 +79,18 @@ app app_new(int width, int height, const char *name) {
                       {GL_DEPTH_ATTACHMENT,  tex_spec_depth24(width, height,
                                                               GL_NEAREST)}
                     }),
+    .shade = fbo_new(1,
+                     (fbo_spec[]){
+                       {GL_DEPTH_ATTACHMENT,
+                        tex_spec_depth24(shade_dim.x, shade_dim.y,
+                                         GL_LINEAR)}
+                     }),
     .low_res = fbo_new(1, (fbo_spec[]){
       {GL_COLOR_ATTACHMENT0,
-       tex_spec_rgba16(low_res * (float)width / (float)height, low_res,
-                       GL_NEAREST)}}),
+       tex_spec_rgba16(lo_dim.x, lo_dim.y, GL_NEAREST)}}),
     .low_res_2 = fbo_new(1, (fbo_spec[]){
       {GL_COLOR_ATTACHMENT0,
-       tex_spec_rgba16(low_res * (float)width / (float)height, low_res,
-                       GL_LINEAR)}}),
+       tex_spec_rgba16(lo_dim.x, lo_dim.y, GL_LINEAR)}}),
     .dither = shader_new(2,
                          (shader_spec[]){
                            {GL_VERTEX_SHADER,   "res/post.vsh"},
@@ -93,9 +106,16 @@ app app_new(int width, int height, const char *name) {
                         {GL_VERTEX_SHADER,   "res/post.vsh"},
                         {GL_FRAGMENT_SHADER, "res/crt.fsh"}
                       }),
+    .mspf = avg_num_new(120), .mspt = avg_num_new(120), .msps = avg_num_new(
+      120),
     .world = world_new(hana_new()),
     .player = 0,
-    .font = font_new(read_bin_file("res/futura.otf"), 128, 40),
+    .font = font_new((u8 *[fw_n]){
+      [fw_reg] = read_bin_file("res/futura/futura-reg.ttf"),
+      [fw_ita] = read_bin_file("res/futura/futura-ita.ttf"),
+      [fw_bold] = read_bin_file("res/futura/futura-bold.ttf"),
+      [fw_bold_ita] = read_bin_file("res/futura/futura-bold-ita.ttf"),
+    }, 128, 44),
     .win = win_new("hello world!", NULL, (v2f){100, 100}, (v2f){100, 400}),
     .is_rendering_halftone = 1
   };
@@ -105,12 +125,44 @@ void app_setup_user_ptr(app *g) {
   glfw_set_window_user_pointer(g->glfw_win, g);
 }
 
+struct timespec diff_timespec(const struct timespec time1,
+                              const struct timespec time0) {
+  struct timespec diff = {
+    .tv_sec = time1.tv_sec - time0.tv_sec,
+    .tv_nsec = time1.tv_nsec - time0.tv_nsec
+  };
+  
+  if (diff.tv_nsec < 0) {
+    diff.tv_nsec += 1000000000;
+    diff.tv_sec--;
+  }
+  
+  return diff;
+}
+
+float app_now() {
+  static struct timespec start;
+  static int first_run = 1;
+  if (first_run) {
+    clock_gettime(CLOCK_REALTIME, &start);
+    first_run = 0;
+  }
+
+  struct timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+
+  struct timespec diff = diff_timespec(ts, start);
+  auto res = (float)diff.tv_sec * 1e3f + (float)diff.tv_nsec / 1e6f;
+
+  return res;
+}
+
 void app_tick(app *a) {
-  const float tick_len = 50.f; // 20 tps
+  const float tick_len = 16.f; // 60 tps
   static float last_frame_in_ticks = -10000.f;
   static float prev_time_ms = -100000.f;
 
-  float time = (float)glfw_get_time() * 1000.f;
+  float time = app_now();
   if (prev_time_ms < 0.f) prev_time_ms = time;
   last_frame_in_ticks =
     (time - prev_time_ms) / tick_len; // # of ticks it took to update last time
@@ -118,7 +170,7 @@ void app_tick(app *a) {
   a->dt += last_frame_in_ticks; // last_frame_in_ticks number of ticks have passed, add that to delta time
   int i = (int)a->dt; // number of whole ticks that have passed, tick them
 
-  auto t_start = (float)glfw_get_time();
+  auto t_start = app_now();
   for (int j = 0; j < min(i, 10); j++) {
     world_tick(a->world, &a->cam);
     arr_add_bulk(&a->world->objs_tick, a->world->objs_to_add);
@@ -126,12 +178,14 @@ void app_tick(app *a) {
 
     pthread_mutex_lock(&a->world->draw_lock);
     arr_copy(&a->world->objs, a->world->objs_tick);
+    world_cache(a->world,
+                world_get_chunk_pos(a->world->objs_tick[a->player].body.pos));
     a->dt -= 1;
     pthread_mutex_unlock(&a->world->draw_lock);
   }
 
   if (i) {
-    a->mspt = ((float)glfw_get_time() - t_start) * 1000;
+    avg_num_add(&a->mspt, (app_now() - t_start));
   }
 }
 
@@ -151,106 +205,128 @@ void app_run(app *a) {
   gl_clear_color(0.3f, 1.f, 1.f, 1.f);
   gl_enable(GL_BLEND);
   gl_blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  gl_cull_face(GL_CCW);
+  gl_front_face(GL_CCW);
 
   gl_debug_message_callback(gl_error_callback, NULL);
   gl_enable(GL_DEBUG_OUTPUT);
+
+  a->shade_cam.ortho_size = 225;
+  a->shade_cam.dist = 15.f;
+  a->shade_cam.shade = 1;
+  cam_rot(&a->shade_cam);
 
   pthread_t thread;
   pthread_create(&thread, NULL, tick_runner, a);
 
   while (!glfw_window_should_close(a->glfw_win)) {
-    auto start = glfw_get_time();
+    auto start = app_now();
 
     gl_enable(GL_DEPTH_TEST);
 
-    // draw the scene
+    pthread_mutex_lock(&a->world->draw_lock);
+    float dt = a->dt;
+    gl_viewport(0, 0, shade_dim.x, shade_dim.y);
+    fbo_bind(&a->shade);
+    gl_clear(GL_DEPTH_BUFFER_BIT);
+    a->shade_cam.pos = v3_add(obj_get_ipos(&a->world->objs[a->player], dt),
+                              (v3f){0, 0.75f, 0});
+    cam_rot(&a->shade_cam);
+    gl_front_face(GL_CW);
+    world_draw(a->world, ds_shade, &a->shade_cam, dt);
+    imod_draw(ds_shade, &a->shade_cam);
+    gl_front_face(GL_CCW);
+
+    {
+      shader *sh = mod_get_sh(ds_cam, &a->cam, (mtl){}, m4_ident);
+      shader_mat4(sh, "u_light_vp", a->shade_cam.vp);
+      tex_bind(fbo_tex_at(&a->shade, GL_DEPTH_ATTACHMENT), 3);
+      shader_int(sh, "u_light_tex", 3);
+      shader_vec2(sh, "u_light_tex_size",
+                  (v2f){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
+
+      sh = imod_get_sh(ds_cam, &a->cam, (mtl){});
+      shader_mat4(sh, "u_light_vp", a->shade_cam.vp);
+      tex_bind(fbo_tex_at(&a->shade, GL_DEPTH_ATTACHMENT), 3);
+      shader_int(sh, "u_light_tex", 3);
+      shader_vec2(sh, "u_light_tex_size",
+                  (v2f){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
+    }
+
+    gl_viewport(0, 0, a->dim.x, a->dim.y);
     fbo_bind(&a->main);
     gl_clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    pthread_mutex_lock(&a->world->draw_lock);
-    a->cam.pos = v3_add(obj_get_ipos(&a->world->objs[a->player], a->dt),
+    a->cam.pos = v3_add(obj_get_ipos(&a->world->objs[a->player], dt),
                         (v3f){0, 0.75f, 0});
     cam_rot(&a->cam);
-    world_draw(a->world, &a->cam, a->dt);
-    imod_draw(&a->cam);
+    world_draw(a->world, ds_cam, &a->cam, dt);
+    imod_draw(ds_cam, &a->cam);
     pthread_mutex_unlock(&a->world->draw_lock);
 
-    if (a->is_rendering_halftone) {
-      gl_enable(GL_BLEND);
+    gl_enable(GL_BLEND);
 
-      gl_blit_named_framebuffer(a->main.id, a->low_res.id, 0, 0, a->dim.x,
-                                a->dim.y, 0, 0,
-                                low_res * (float)a->dim.x / (float)a->dim.y,
-                                low_res, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    gl_blit_named_framebuffer(a->main.id, a->low_res.id, 0, 0, a->dim.x,
+                              a->dim.y, 0, 0,
+                              a->lo_dim.x, a->lo_dim.y, GL_COLOR_BUFFER_BIT,
+                              GL_LINEAR);
 
-      fbo_bind(&a->low_res_2);
-      gl_viewport(0, 0, low_res * (float)a->dim.x / (float)a->dim.y, low_res);
-      gl_disable(GL_DEPTH_TEST);
-      gl_clear(GL_COLOR_BUFFER_BIT);
+    fbo_bind(&a->low_res_2);
+    gl_viewport(0, 0, a->lo_dim.x, a->lo_dim.y);
+    gl_disable(GL_DEPTH_TEST);
+    gl_clear(GL_COLOR_BUFFER_BIT);
 
-      shader_bind(&a->dither);
-      dither_up(&a->dither,
-                (dither){
-                  .tex = fbo_tex_at(&a->low_res, GL_COLOR_ATTACHMENT0),
-                  .unit = 0,
-                  .pal_size = dreamy_haze_size,
-                  .pal = dreamy_haze
-                });
-
-      vao_bind(&a->post);
-      gl_draw_arrays(GL_TRIANGLES, 0, 6);
-
-      gl_bind_framebuffer(GL_FRAMEBUFFER, 0);
-      gl_viewport(0, 0, a->dim.x, a->dim.y);
-
-      shader_bind(&a->crt);
-      crt_up(&a->crt, (crt){
-        .tex = fbo_tex_at(&a->low_res_2, GL_COLOR_ATTACHMENT0),
-        .unit = 0,
-        .aspect = a->dim.x / a->dim.y,
-        .lores = low_res
-      });
-
-      vao_bind(&a->post);
-      gl_draw_arrays(GL_TRIANGLES, 0, 6);
-    } else {
-      gl_bind_framebuffer(GL_FRAMEBUFFER, 0);
-      gl_disable(GL_DEPTH_TEST);
-      gl_clear(GL_COLOR_BUFFER_BIT);
-
-      shader_bind(&a->blit);
-      blit_up(&a->blit,
-              (blit){
-                .tex = fbo_tex_at(&a->main, GL_COLOR_ATTACHMENT0),
-                .unit = 0
+    shader_bind(&a->dither);
+    dither_up(&a->dither,
+              (dither){
+                .tex = fbo_tex_at(&a->low_res, GL_COLOR_ATTACHMENT0),
+                .unit = 0,
+                .pal_size = dreamy_haze_size,
+                .pal = dreamy_haze
               });
 
-      vao_bind(&a->post);
-      gl_draw_arrays(GL_TRIANGLES, 0, 6);
-    }
+    vao_bind(&a->post);
+    gl_draw_arrays(GL_TRIANGLES, 0, 6);
+
+    gl_bind_framebuffer(GL_FRAMEBUFFER, 0);
+    gl_viewport(0, 0, a->dim.x, a->dim.y);
+
+    shader_bind(&a->crt);
+    crt_up(&a->crt, (crt){
+      .tex = fbo_tex_at(&a->low_res_2, GL_COLOR_ATTACHMENT0),
+      .unit = 0,
+      .aspect = a->dim.x / a->dim.y,
+      .lores = low_res
+    });
+
+    vao_bind(&a->post);
+    gl_draw_arrays(GL_TRIANGLES, 0, 6);
 
     gl_enable(GL_BLEND);
 
     draw_rect(a, (v2f){10, 10}, (v2f){640, 20 + a->font.size * 4 + 10},
               (v4f){0.f, 0.f, 0.f, 0.5f});
     char text_buf[128];
-    sprintf_s(text_buf, 128, "xyz: %f %f %f", a->cam.pos.x, a->cam.pos.y,
+    sprintf_s(text_buf, 128, "&bxyz&r: &b%.2f&r &b%.2f&r &b%.2f", a->cam.pos.x,
+              a->cam.pos.y,
               a->cam.pos.z);
     font_draw(&a->font, a, text_buf, (v2f){20, 20}, 0xffffffff, 1, 1.f);
-    sprintf_s(text_buf, 128, "msp(t/f): %f/%lf", a->mspt,
-              (glfw_get_time() - start) * 1000);
+    sprintf_s(text_buf, 128,
+              "&bmsp&r(&bt&r/&bf&r): &b%.3f&r/&b%.3f",
+              avg_num_get(&a->mspt),
+              avg_num_get(&a->mspf));
     font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size}, 0xffffffff,
               1, 1.f);
-    sprintf_s(text_buf, 128, "world size: %zu/%zu", a->world->chunks.count,
+    sprintf_s(text_buf, 128, "&bworld size&r: &b%zu&r/&b%zu",
+              a->world->chunks.count,
               a->world->chunks.cap);
     font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 2},
               0xffffffff, 1, 1.f);
-    sprintf_s(text_buf, 128, "# objects: %zu", arr_len(a->world->objs));
+    sprintf_s(text_buf, 128, "&b# objects&r: &b%zu", arr_len(a->world->objs));
     font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 3},
               0xffffffff, 1, 1.f);
 
+
     glfw_swap_buffers(a->glfw_win);
+    avg_num_add(&a->mspf, (app_now() - start));
     glfw_poll_events();
   }
 }
@@ -268,9 +344,11 @@ bool app_is_key_down(app *g, int key) {
 void framebuffer_size_callback(GLFWwindow *win, int width, int height) {
   app *k = glfw_get_window_user_pointer(win);
   k->dim = (v2f){(float)width, (float)height};
-  fbo_resize(&k->low_res, low_res * (float)width / (float)height, low_res, 1,
+  k->lo_dim = (v2i){(int)(low_res * (float)width / (float)height),
+                    (int)low_res};
+  fbo_resize(&k->low_res, k->lo_dim.x, k->lo_dim.y, 1,
              (uint[]){GL_COLOR_ATTACHMENT0});
-  fbo_resize(&k->low_res_2, low_res * (float)width / (float)height, low_res, 1,
+  fbo_resize(&k->low_res_2, k->lo_dim.x, k->lo_dim.y, 1,
              (uint[]){GL_COLOR_ATTACHMENT0});
   fbo_resize(&k->main, width, height, 2,
              (uint[]){GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT});

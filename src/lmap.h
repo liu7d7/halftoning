@@ -17,7 +17,7 @@ typedef struct lmap {
   uint32_t (*hash)(void *key);
 } lmap;
 
-void lmap_add(lmap *l, void *key, void *val);
+void *lmap_add(lmap *l, void *key, void *val);
 
 void *lmap_at(lmap *l, void *key);
 

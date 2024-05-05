@@ -42,7 +42,7 @@ GLFWbool _glfwPlatformCreateTls(_GLFWtls* tls) {
   tls->win32.index = TlsAlloc();
   if (tls->win32.index == TLS_OUT_OF_INDEXES) {
     _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,
-                         "Win32: Failed to allocate TLS index");
+                         "Win32: Failed to allocate TLS idx");
     return GLFW_FALSE;
   }
 

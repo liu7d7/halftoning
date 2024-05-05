@@ -32,3 +32,5 @@ technical stuff:
 
 ticking issue:
   render thread still on old state, but dt wraps around to zero again.
+
+cull face is always off, set state to disabled after rendering w/ culling

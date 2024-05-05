@@ -4,17 +4,16 @@
 #include "arr.h"
 #include "box.h"
 #include <stddef.h>
+#include "gl.h"
 
 void body_response(body *b, hit h, float slip) {
-  b->pos = v3_add(b->pos, v3_mul(h.norm, h.push + 0.0001f));
+  b->pos = v3_add(b->pos, v3_mul(h.norm, h.push));
   float vel_len = v3_len(b->vel);
   v3f vel_normed = v3_div(b->vel, vel_len);
   v3f undesired_motion = v3_mul(h.norm, v3_dot(vel_normed, h.norm));
   v3f desired_motion = v3_sub(vel_normed, undesired_motion);
-  b->vel = v3_mul(desired_motion, vel_len);
-  b->total_slip += slip;
-  b->hits++;
-  b->on_ground |= v3_dot(h.norm, v3_uy) > 0;
+  b->vel = v3_mul(desired_motion, vel_len * slip);
+  b->on_ground = 1;
 }
 
 hit hit_b(body *a, body *b) {
@@ -298,7 +297,7 @@ ball ball_new(float rad) {
 
 void body_tick(body *b, float t) {
   b->pos = v3_add(b->pos, b->vel);
-  b->vel.y -= 0.0981f * t * t;
+  b->vel.y -= 0.0981f * t * t * 0.33f * 0.33f;
 }
 
 tmesh tmesh_new(tri *tris) {
@@ -382,5 +381,23 @@ hit hit_inv(hit h) {
     v3_inv(h.norm),
     h.push,
   };
+}
+
+tmesh tmesh_add(tmesh *orig, v3f pos) {
+  tmesh m = {
+    .type = bt_mesh,
+    .box = box3_new(v3_add(orig->box.min, pos), v3_add(orig->box.max, pos)),
+    .tris = arr_new(tri, 4)
+  };
+
+  arr_copy(&m.tris, orig->tris);
+
+  for (tri *t = m.tris, *end = arr_end(m.tris); t != end; t++) {
+    v3_inc(&t->pos[0], pos);
+    v3_inc(&t->pos[1], pos);
+    v3_inc(&t->pos[2], pos);
+  }
+
+  return m;
 }
 

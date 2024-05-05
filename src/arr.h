@@ -24,12 +24,16 @@ u8 *internal_arr_base_ptr(u8 *memory);
 
 void arr_add(void *memory, void *item);
 
+void *arr_from_arr(size_t elem_size, size_t len, void *data);
+
 bool internal_arr_has(u8 *memory, u8 *element, size_t elem_size);
 
 #define arr_has(this, element) internal_arr_has((byte*) this, (byte*) &element, sizeof(element))
 #define arr_has_i(this, type, ...) internal_arr_has((byte*) this, (byte*) &(type) {__VA_ARGS__}, sizeof(type))
 
-#define arr_last(this) &(this)[arr_count(this) - 1]
+#define arr_last(this) &(this)[arr_len(this) - 1]
+
+void arr_add_arr(void *thing, void *src_arr, size_t src_len, size_t src_elem_size);
 
 #define arr_len(this) internal_arr_get_metadata((u8*) this)->count
 

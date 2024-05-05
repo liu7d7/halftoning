@@ -45,6 +45,8 @@ add_executable(wip main.c src/lib/glad/glad.c src/lib/glad/glad.h src/lib/glad/k
         src/obj.h
         src/obj.c
         src/hana.h
+        src/avg.h
+        src/avg.c
 )
 
 find_package(assimp CONFIG REQUIRED)

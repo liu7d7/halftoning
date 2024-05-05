@@ -4,6 +4,7 @@
 #include <intrin.h>
 #include "typedefs.h"
 #include "err.h"
+#include "body.h"
 #include <assimp/cimport.h>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -11,12 +12,19 @@
 // forward declaration
 struct app;
 
+typedef enum draw_src {
+  ds_cam,
+  ds_shade,
+  ds_n,
+} draw_src;
+
 typedef struct cam {
   v3f pos, front, up, right, world_up;
-  float target_yaw, yaw, target_pitch, pitch, speed, vel, sens, zoom, aspect;
+  float target_yaw, yaw, target_pitch, pitch, zoom, aspect, ortho_size, dist;
 
   v2f last_mouse_pos;
-  bool has_last;
+  bool has_last, shade;
+  m4f vp, cvp;
 } cam;
 
 cam cam_new(v3f pos, v3f world_up, float yaw, float pitch, float aspect);
@@ -28,6 +36,8 @@ void cam_rot(cam *c);
 m4f cam_get_look(cam *c);
 
 m4f cam_get_proj(cam *c);
+
+int cam_test_box(cam *c, box3 b);
 
 typedef struct shader {
   uint id;
@@ -64,6 +74,8 @@ typedef struct buf {
 buf buf_new(uint type);
 
 buf *buf_heap_new(uint type);
+
+void *buf_rw(buf *b, size_t size);
 
 void
 buf_data_n(buf *b, uint usage, ssize_t elem_size, ssize_t n, void *data);
@@ -261,15 +273,17 @@ typedef struct mod {
 
   mesh *meshes;
   int n_meshes;
+
+  box3 bounds;
 } mod;
 
-shader *mod_get_sh(cam *c, mtl m, m4f t);
+shader *mod_get_sh(draw_src s, cam *c, mtl m, m4f t);
 
 mod mod_new(char const *path);
 
 mod mod_new_mem(const char *mem, size_t len, const char *path);
 
-void mod_draw(mod *m, cam *c, m4f t);
+void mod_draw(mod *m, draw_src s, cam *c, m4f t);
 
 typedef struct imod {
   tex *texes;
@@ -280,11 +294,13 @@ typedef struct imod {
 
   m4f *model;
   buf model_buf;
+
+  box3 bounds;
 } imod;
 
 imod *imod_new(mod m);
-shader *imod_get_sh(cam *c, mtl m);
-void imod_draw(cam *c);
+shader *imod_get_sh(draw_src s, cam *c, mtl m);
+void imod_draw(draw_src s, cam *c);
 void imod_add(imod *m, m4f trans);
 
 int *quad_indices(int w, int h);

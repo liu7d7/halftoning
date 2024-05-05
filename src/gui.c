@@ -136,3 +136,7 @@ win win_new(const char *title, widget *widgets, v2f pos, v2f dim) {
     .dim = dim
   };
 }
+
+void draw_line_graph(struct app *a, v2f points, v4f color) {
+  
+}

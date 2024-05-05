@@ -155,7 +155,7 @@
 //         A visual character shape (every codepoint is rendered as
 //         some glyph)
 //
-//      Glyph index
+//      Glyph idx
 //         A font-specific integer ID representing a glyph
 //
 //      Baseline
@@ -726,15 +726,15 @@ STBTT_DEF int stbtt_GetNumberOfFonts(const unsigned char *data);
 // This function will determine the number of fonts in a font file.  TrueType
 // collection (.ttc) files may contain multiple fonts, while TrueType font
 // (.ttf) files only contain one font. The number of fonts can be used for
-// indexing with the previous function where the index is between zero and one
+// indexing with the previous function where the idx is between zero and one
 // less than the total fonts. If an error occurs, -1 is returned.
 
 STBTT_DEF int stbtt_GetFontOffsetForIndex(const unsigned char *data, int index);
 // Each .ttf/.ttc file may have more than one font. Each font has a sequential
-// index number starting from 0. Call this function to get the font offset for
-// a given index; it returns -1 if the index is out of range. A regular .ttf
+// idx number starting from 0. Call this function to get the font offset for
+// a given idx; it returns -1 if the idx is out of range. A regular .ttf
 // file will only define one font and it always be at offset 0, so it will
-// return '0' for index 0, and -1 for all other indices.
+// return '0' for idx 0, and -1 for all other indices.
 
 // The following structure is defined publicly so you can declare one on
 // the stack or as a global or etc, but you should treat it as opaque.
@@ -747,12 +747,12 @@ struct stbtt_fontinfo {
 
   int loca, head, glyf, hhea, hmtx, kern, gpos, svg; // table locations as offset from start of .ttf
   int index_map;                     // a cmap mapping for our chosen character encoding
-  int indexToLocFormat;              // format needed to lin_map from glyph index to glyph
+  int indexToLocFormat;              // format needed to lin_map from glyph idx to glyph
 
   stbtt__buf cff;                    // cff font data
-  stbtt__buf charstrings;            // the charstring index
-  stbtt__buf gsubrs;                 // global charstring subroutines index
-  stbtt__buf subrs;                  // private charstring subroutines index
+  stbtt__buf charstrings;            // the charstring idx
+  stbtt__buf gsubrs;                 // global charstring subroutines idx
+  stbtt__buf subrs;                  // private charstring subroutines idx
   stbtt__buf fontdicts;              // array of font dicts
   stbtt__buf fdselect;               // lin_map from glyph to fontdict
 };
@@ -1154,7 +1154,7 @@ stbtt_GetCodepointSDF(const stbtt_fontinfo *info, float scale, int codepoint,
 STBTT_DEF int
 stbtt_FindMatchingFont(const unsigned char *fontdata, const char *name,
                        int flags);
-// returns the offset (not index) of the font that matches, or -1 if none
+// returns the offset (not idx) of the font that matches, or -1 if none
 //   if you use STBTT_MACSTYLE_DONTCARE, use a font name like "Arial Bold".
 //   if you use any other flag, use a font name like "Arial"; this checks
 //     the 'macStyle' header field; i don't know if fonts set this consistently
@@ -1455,20 +1455,20 @@ static stbtt_uint32 stbtt__find_table(stbtt_uint8 *data, stbtt_uint32 fontstart,
    return 0;
 }
 
-static int stbtt_GetFontOffsetForIndex_internal(unsigned char *font_collection, int index)
+static int stbtt_GetFontOffsetForIndex_internal(unsigned char *font_collection, int idx)
 {
-   // if it's just a font, there's only one valid index
+   // if it's just a font, there's only one valid idx
    if (stbtt__isfont(font_collection))
-      return index == 0 ? 0 : -1;
+      return idx == 0 ? 0 : -1;
 
    // check if it's a TTC
    if (stbtt_tag(font_collection, "ttcf")) {
       // version 1?
       if (ttULONG(font_collection+4) == 0x00010000 || ttULONG(font_collection+4) == 0x00020000) {
          stbtt_int32 n = ttLONG(font_collection+8);
-         if (index >= n)
+         if (idx >= n)
             return -1;
-         return ttULONG(font_collection+12+index*4);
+         return ttULONG(font_collection+12+idx*4);
       }
    }
    return -1;
@@ -1745,8 +1745,8 @@ static int stbtt__GetGlyfOffset(const stbtt_fontinfo *info, int glyph_index)
 
    STBTT_assert(!info->cff.size);
 
-   if (glyph_index >= info->numGlyphs) return -1; // glyph index out of range
-   if (info->indexToLocFormat >= 2)    return -1; // unknown index->glyph lin_map format
+   if (glyph_index >= info->numGlyphs) return -1; // glyph idx out of range
+   if (info->indexToLocFormat >= 2)    return -1; // unknown idx->glyph lin_map format
 
    if (info->indexToLocFormat == 0) {
       g1 = info->glyf + ttUSHORT(info->data + info->loca + glyph_index * 2) * 2;
@@ -3066,7 +3066,7 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
    stbtt__active_edge *active = NULL;
    int y,j=0;
    int max_weight = (255 / vsubsample);  // weight per vertical scanline
-   int s; // vertical subsample index
+   int s; // vertical subsample idx
    unsigned char scanline_data[512], *scanline;
 
    if (result->w > 512)
@@ -4486,12 +4486,12 @@ STBTT_DEF int stbtt_PackFontRange(stbtt_pack_context *spc, const unsigned char *
    return stbtt_PackFontRanges(spc, fontdata, font_index, &range, 1);
 }
 
-STBTT_DEF void stbtt_GetScaledFontVMetrics(const unsigned char *fontdata, int index, float size, float *ascent, float *descent, float *lineGap)
+STBTT_DEF void stbtt_GetScaledFontVMetrics(const unsigned char *fontdata, int idx, float size, float *ascent, float *descent, float *lineGap)
 {
    int i_ascent, i_descent, i_lineGap;
    float scale;
    stbtt_fontinfo info;
-   stbtt_InitFont(&info, fontdata, stbtt_GetFontOffsetForIndex(fontdata, index));
+   stbtt_InitFont(&info, fontdata, stbtt_GetFontOffsetForIndex(fontdata, idx));
    scale = size > 0 ? stbtt_ScaleForPixelHeight(&info, size) : stbtt_ScaleForMappingEmToPixels(&info, -size);
    stbtt_GetFontVMetrics(&info, &i_ascent, &i_descent, &i_lineGap);
    *ascent  = (float) i_ascent  * scale;
@@ -5078,9 +5078,9 @@ STBTT_DEF int stbtt_BakeFontBitmap(const unsigned char *data, int offset,
    return stbtt_BakeFontBitmap_internal((unsigned char *) data, offset, pixel_height, pixels, pw, ph, first_char, num_chars, chardata);
 }
 
-STBTT_DEF int stbtt_GetFontOffsetForIndex(const unsigned char *data, int index)
+STBTT_DEF int stbtt_GetFontOffsetForIndex(const unsigned char *data, int idx)
 {
-   return stbtt_GetFontOffsetForIndex_internal((unsigned char *) data, index);
+   return stbtt_GetFontOffsetForIndex_internal((unsigned char *) data, idx);
 }
 
 STBTT_DEF int stbtt_GetNumberOfFonts(const unsigned char *data)

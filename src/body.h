@@ -1,7 +1,6 @@
 #pragma once
 
 #include "typedefs.h"
-#include "gl.h"
 #include "box.h"
 
 /*-- a physics body in 3d space. --*/
@@ -41,8 +40,12 @@ typedef struct tmesh {
   box3 box;
 } tmesh;
 
+struct obj_vtx;
+
 tmesh tmesh_new(tri *tris);
-tmesh tmesh_new_vi(obj_vtx *verts, int *inds);
+tmesh tmesh_new_vi(struct obj_vtx *verts, int *inds);
+
+tmesh tmesh_add(tmesh *orig, v3f pos);
 
 typedef struct body {
   union {
@@ -53,8 +56,7 @@ typedef struct body {
     tmesh mesh;
   };
 
-  float slip, total_slip;
-  int hits;
+  float slip;
   bool on_ground;
   v3f pos, prev_pos, vel;
 } body;

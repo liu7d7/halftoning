@@ -16,13 +16,14 @@ uniform sampler2D u_tex0;
 
 void main() {
   vec2 uv = v_uv;
-  vec2 uv525 = v_uv * u_aspect * u_lores;
 
   //curving
   vec2 crtUV = uv * 2. - 1.;
   vec2 offset = crtUV.yx / CURVATURE;
   crtUV += crtUV * offset * offset;
   crtUV = crtUV * .5 + .5;
+
+  vec2 uv525 = crtUV * u_aspect * u_lores;
 
   vec2 edge = smoothstep(0., BLUR, crtUV) * (1. - smoothstep(1. - BLUR, 1., crtUV));
 

@@ -9,17 +9,20 @@
 #include "world.h"
 #include "font.h"
 #include "gui.h"
+#include "avg.h"
 
 typedef struct app {
   v2f dim;
+  v2i lo_dim;
   v2f mouse;
   vao post;
   shader dither, blit, crt;
-  cam cam;
-  fbo low_res, low_res_2, main;
+  cam cam, shade_cam;
+  fbo low_res, low_res_2, main, shade;
   world *world;
   bool is_mouse_captured, is_rendering_halftone;
-  float dt, mspt;
+  float dt;
+  avg_num mspt, mspf, msps;
   font font;
   win win;
   int player;
@@ -52,3 +55,5 @@ void mouse_button_callback(GLFWwindow *win, int button, int action, int mods);
 void
 gl_error_callback(uint source, uint type, uint id, uint severity, int length,
                   char const *message, void const *user_param);
+
+float app_now();

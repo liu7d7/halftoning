@@ -76,3 +76,5 @@ void win_key(win *w, char c);
 void draw_circle(struct app *a, v2f pos, float rad, v4f color);
 
 void draw_rect(struct app *a, v2f tl, v2f br, v4f color);
+
+void draw_line_graph(struct app *a, v2f points, v4f color);

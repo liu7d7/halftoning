@@ -101,6 +101,30 @@ void arr_add_bulk(void *thing, void *src) {
   dst_meta->count = new_count;
 }
 
+void arr_add_arr(void *thing, void *src_arr, size_t src_len, size_t src_elem_size) {
+  void **dst = thing;
+  arr_metadata *dst_meta = internal_arr_get_metadata(*dst);
+
+  if (src_len == 0) return;
+
+  size_t new_count = dst_meta->count + src_len;
+  if (new_count > dst_meta->len) {
+    size_t next = (size_t)pow(2, ceil(log2((double)new_count)));
+
+    void *new_memory = realloc(internal_arr_base_ptr(*dst),
+                               sizeof(arr_metadata) +
+                               next * dst_meta->elem_size);
+    ((arr_metadata *)new_memory)->len = next;
+    *dst = new_memory + sizeof(arr_metadata);
+
+    dst_meta = internal_arr_get_metadata(*dst);
+  }
+
+  memcpy(*dst + dst_meta->count * dst_meta->elem_size, src_arr,
+         src_len * src_elem_size);
+  dst_meta->count = new_count;
+}
+
 void *arr_end(void *memory) {
   arr_metadata *meta = internal_arr_get_metadata(memory);
   return memory + meta->elem_size * meta->count;
@@ -141,4 +165,17 @@ void arr_copy(void *_dst, void *src) {
              sizeof(arr_metadata) + src_meta.len * src_meta.elem_size) +
       sizeof(arr_metadata);
   }
+}
+
+void *arr_from_arr(size_t elem_size, size_t len, void *data) {
+  u8 *memory = malloc(sizeof(arr_metadata) + len * elem_size);
+  memcpy(memory, &(arr_metadata){
+    .len = len,
+    .count = len,
+    .elem_size = elem_size
+  }, sizeof(arr_metadata));
+
+  memcpy(memory + sizeof(arr_metadata), data, elem_size * len);
+
+  return memory + sizeof(arr_metadata);
 }
