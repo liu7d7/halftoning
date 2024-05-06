@@ -32,9 +32,11 @@ void main() {
   float mx = 0.0;
   vec4 cmx = f_color;
 
+  float size_sq = size * size;
+
   for (int i = -size; i <= size; ++i) {
     for (int j = -size; j <= size; ++j) {
-      if (!(distance(vec2(i, j), vec2(0, 0)) <= size)) { continue; }
+      if (dot(vec2(i, j), vec2(i, j)) > size_sq) { continue; }
 
       vec4 c = texture(u_tex, v_uv + (vec2(i, j) * u_separation * u_tex_size));
 

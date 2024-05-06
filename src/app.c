@@ -212,7 +212,7 @@ void *tick_runner(void *ap) {
 void app_run(app *a) {
   app_setup_user_ptr(a);
   gl_depth_func(GL_LESS);
-  gl_clear_color(0.f, 0.f, 1.f, 1.f);
+  gl_clear_color(0.3f, 1.f, 1.f, 1.f);
   gl_enable(GL_BLEND);
   gl_blend_func(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   gl_front_face(GL_CCW);
@@ -272,30 +272,9 @@ void app_run(app *a) {
     imod_draw(ds_cam, &a->cam);
     pthread_mutex_unlock(&a->world->draw_lock);
 
-    fbo_bind(&a->dof);
-    gl_disable(GL_DEPTH_TEST);
-    gl_clear(GL_COLOR_BUFFER_BIT);
-
-    shader_bind(&a->dilate);
-    dof_up(&a->dilate,
-           (dof){
-             .tex = fbo_tex_at(&a->main, GL_COLOR_ATTACHMENT0),
-             .tex_unit = 0,
-             .depth = fbo_tex_at(&a->main, GL_DEPTH_ATTACHMENT),
-             .depth_unit = 1,
-             .separation = 2,
-             .size = 4,
-             .min_depth = 0.2f,
-             .max_depth = 0.8f,
-             .screen_size = a->dim,
-           });
-
-    vao_bind(&a->post);
-    gl_draw_arrays(GL_TRIANGLES, 0, 6);
-
     gl_enable(GL_BLEND);
 
-    gl_blit_named_framebuffer(a->dof.id, a->low_res.id, 0, 0, a->dim.x,
+    gl_blit_named_framebuffer(a->main.id, a->low_res.id, 0, 0, a->dim.x,
                               a->dim.y, 0, 0,
                               a->lo_dim.x, a->lo_dim.y, GL_COLOR_BUFFER_BIT,
                               GL_LINEAR);
