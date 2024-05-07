@@ -198,16 +198,16 @@ float font_get_width(font *f, char const *text, float scale) {
   return dx;
 }
 
-shader *font_get_sh(struct app *a) {
-  static shader *sh = NULL;
+shdr *font_get_sh(struct app *a) {
+  static shdr *sh = NULL;
   if (!sh) {
-    sh = objdup(shader_new(2, (shader_spec[]){
+    sh = objdup(shdr_new(2, (shdr_spec[]){
       {GL_VERTEX_SHADER,   "res/font.vsh"},
       {GL_FRAGMENT_SHADER, "res/font.fsh"}
     }));
   }
 
-  shader_mat4(sh, "u_proj", m4_ortho(0, a->dim.x, a->dim.y, 0, -5, 5));
+  shdr_m4f(sh, "u_proj", m4_ortho(0, a->dim.x, a->dim.y, 0, -5, 5));
 
   return sh;
 }

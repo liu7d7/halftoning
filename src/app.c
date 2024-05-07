@@ -96,27 +96,27 @@ app app_new(int width, int height, const char *name) {
     .low_res_2 = fbo_new(1, (fbo_spec[]){
       {GL_COLOR_ATTACHMENT0,
        tex_spec_rgba16(lo_dim.x, lo_dim.y, GL_LINEAR)}}),
-    .dither = shader_new(2,
-                         (shader_spec[]){
+    .dither = shdr_new(2,
+                         (shdr_spec[]){
                            {GL_VERTEX_SHADER,   "res/post.vsh"},
                            {GL_FRAGMENT_SHADER, "res/dither.fsh"}
                          }),
-    .blit = shader_new(2,
-                       (shader_spec[]){
+    .blit = shdr_new(2,
+                       (shdr_spec[]){
                          {GL_VERTEX_SHADER,   "res/post.vsh"},
                          {GL_FRAGMENT_SHADER, "res/blit.fsh"}
                        }),
-    .crt = shader_new(2,
-                      (shader_spec[]){
+    .crt = shdr_new(2,
+                      (shdr_spec[]){
                         {GL_VERTEX_SHADER,   "res/post.vsh"},
                         {GL_FRAGMENT_SHADER, "res/crt.fsh"}
                       }),
-    .dilate = shader_new(2,
-                         (shader_spec[]){
+    .dilate = shdr_new(2,
+                         (shdr_spec[]){
                            {GL_VERTEX_SHADER,   "res/post.vsh"},
                            {GL_FRAGMENT_SHADER, "res/dof_dilate.fsh"}
                          }),
-    .mspf = avg_num_new(120), .mspt = avg_num_new(120), .msps = avg_num_new(
+    .mspf = avg_num_new(120), .mspt = avg_num_new(120), .mspd = avg_num_new(
       120),
     .world = world_new(hana_new()),
     .player = 0,
@@ -247,19 +247,19 @@ void app_run(app *a) {
     gl_front_face(GL_CCW);
 
     {
-      shader *sh = mod_get_sh(ds_cam, &a->cam, (mtl){}, m4_ident);
-      shader_mat4(sh, "u_light_vp", a->shade_cam.vp);
+      shdr *sh = mod_get_sh(ds_cam, &a->cam, (mtl){}, m4_ident);
+      shdr_m4f(sh, "u_light_vp", a->shade_cam.vp);
       tex_bind(fbo_tex_at(&a->shade, GL_DEPTH_ATTACHMENT), 3);
-      shader_int(sh, "u_light_tex", 3);
-      shader_vec2(sh, "u_light_tex_size",
-                  (v2f){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
+      shdr_1i(sh, "u_light_tex", 3);
+      shdr_2f(sh, "u_light_tex_size",
+              (v2f){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
 
       sh = imod_get_sh(ds_cam, &a->cam, (mtl){});
-      shader_mat4(sh, "u_light_vp", a->shade_cam.vp);
+      shdr_m4f(sh, "u_light_vp", a->shade_cam.vp);
       tex_bind(fbo_tex_at(&a->shade, GL_DEPTH_ATTACHMENT), 3);
-      shader_int(sh, "u_light_tex", 3);
-      shader_vec2(sh, "u_light_tex_size",
-                  (v2f){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
+      shdr_1i(sh, "u_light_tex", 3);
+      shdr_2f(sh, "u_light_tex_size",
+              (v2f){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
     }
 
     gl_viewport(0, 0, a->dim.x, a->dim.y);
@@ -284,7 +284,7 @@ void app_run(app *a) {
     gl_disable(GL_DEPTH_TEST);
     gl_clear(GL_COLOR_BUFFER_BIT);
 
-    shader_bind(&a->dither);
+    shdr_bind(&a->dither);
     dither_up(&a->dither,
               (dither){
                 .tex = fbo_tex_at(&a->low_res, GL_COLOR_ATTACHMENT0),
@@ -299,7 +299,7 @@ void app_run(app *a) {
     gl_bind_framebuffer(GL_FRAMEBUFFER, 0);
     gl_viewport(0, 0, a->dim.x, a->dim.y);
 
-    shader_bind(&a->crt);
+    shdr_bind(&a->crt);
     crt_up(&a->crt, (crt){
       .tex = fbo_tex_at(&a->low_res_2, GL_COLOR_ATTACHMENT0),
       .unit = 0,
@@ -320,9 +320,10 @@ void app_run(app *a) {
               a->cam.pos.z);
     font_draw(&a->font, a, text_buf, (v2f){20, 20}, 0xffffffff, 1, 1.f);
     sprintf_s(text_buf, 128,
-              "&bmsp&r(&bt&r/&bf&r): &b%.3f&r/&b%.3f",
+              "&bmsp&r(&bt&r/&bf&r/&bd&r): &b%.3f&r/&b%.3f/&b%.3f",
               avg_num_get(&a->mspt),
-              avg_num_get(&a->mspf));
+              avg_num_get(&a->mspf),
+              avg_num_get(&a->mspd));
     font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size}, 0xffffffff,
               1, 1.f);
     sprintf_s(text_buf, 128, "&bworld size&r: &b%zu&r/&b%zu",
@@ -334,6 +335,7 @@ void app_run(app *a) {
     font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 3},
               0xffffffff, 1, 1.f);
 
+    avg_num_add(&a->mspd, (app_now() - start));
 
     glfw_swap_buffers(a->glfw_win);
     avg_num_add(&a->mspf, (app_now() - start));

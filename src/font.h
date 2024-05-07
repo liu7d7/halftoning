@@ -36,4 +36,4 @@ void font_draw(font *f, struct app *a, const char *text, v2f pos, uint color,
                int shadow,
                float scale);
 
-shader *font_get_sh(struct app *a);
+shdr *font_get_sh(struct app *a);

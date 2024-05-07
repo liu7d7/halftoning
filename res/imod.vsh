@@ -10,10 +10,11 @@ layout (location = 2) out vec4 v_light_space_pos;
 
 uniform mat4 u_vp;
 uniform mat4 u_light_vp;
-uniform mat4 u_model_no_scale;
+
+#include <res/wind_lib.glsl>
 
 void main() {
-  vec4 final = vec4(pos, 1.) * model * u_vp;
+  vec4 final = vec4(do_wind(pos), 1.) * model * u_vp;
   v_light_space_pos = vec4(pos, 1.) * model * u_light_vp;
   v_norm = normalize(norm * mat3(transpose(inverse(model))));
   v_pos = final.xyz;

@@ -2,11 +2,11 @@
 #include "app.h"
 
 void draw_circle(app *a, v2f pos, float rad, v4f color) {
-  static shader *sh = NULL;
+  static shdr *sh = NULL;
   static buf *vb = NULL;
   static vao *va = NULL;
   if (!sh) {
-    sh = objdup(shader_new(2, (shader_spec[]){
+    sh = objdup(shdr_new(2, (shdr_spec[]){
       {GL_VERTEX_SHADER,   "res/circle.vsh"},
       {GL_FRAGMENT_SHADER, "res/circle.fsh"}}));
 
@@ -24,22 +24,22 @@ void draw_circle(app *a, v2f pos, float rad, v4f color) {
   buf_data_n(vb, GL_DYNAMIC_DRAW, sizeof(v2f), 6,
              (v2f[]){v00, v01, v11, v11, v10, v00});
 
-  shader_bind(sh);
-  shader_vec4(sh, "u_color", color);
-  shader_float(sh, "u_rad", rad);
-  shader_vec2(sh, "u_center", pos);
-  shader_mat4(sh, "u_proj",
-              m4_ortho(0, a->dim.x, a->dim.y, 0, -1.f, 1.f));
+  shdr_bind(sh);
+  shdr_4f(sh, "u_color", color);
+  shdr_1f(sh, "u_rad", rad);
+  shdr_2f(sh, "u_center", pos);
+  shdr_m4f(sh, "u_proj",
+           m4_ortho(0, a->dim.x, a->dim.y, 0, -1.f, 1.f));
   vao_bind(va);
   gl_draw_arrays(GL_TRIANGLES, 0, 6);
 }
 
 void draw_rect(app *a, v2f tl, v2f br, v4f color) {
-  static shader *sh = NULL;
+  static shdr *sh = NULL;
   static buf *vb = NULL;
   static vao *va = NULL;
   if (!sh) {
-    sh = objdup(shader_new(2, (shader_spec[]){
+    sh = objdup(shdr_new(2, (shdr_spec[]){
       {GL_VERTEX_SHADER,   "res/rect.vsh"},
       {GL_FRAGMENT_SHADER, "res/rect.fsh"}}));
 
@@ -53,10 +53,10 @@ void draw_rect(app *a, v2f tl, v2f br, v4f color) {
   buf_data_n(vb, GL_DYNAMIC_DRAW, sizeof(v2f), 6,
              (v2f[]){v00, v01, v11, v11, v10, v00});
 
-  shader_bind(sh);
-  shader_vec4(sh, "u_color", color);
-  shader_mat4(sh, "u_proj",
-              m4_ortho(0, a->dim.x, a->dim.y, 0, -1.f, 1.f));
+  shdr_bind(sh);
+  shdr_4f(sh, "u_color", color);
+  shdr_m4f(sh, "u_proj",
+           m4_ortho(0, a->dim.x, a->dim.y, 0, -1.f, 1.f));
   vao_bind(va);
   gl_draw_arrays(GL_TRIANGLES, 0, 6);
 }

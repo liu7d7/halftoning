@@ -39,10 +39,11 @@ void cam_tick(cam *c, app *a) {
 }
 
 m4f cam_get_look(cam *c) {
-  return m4_look(v3_sub(c->pos, v3_mul(c->front, c->dist)), c->front, c->up);
+  return m4_look(cam_get_eye(c), c->front, c->up);
 }
 
-float const cam_near = 0.01f, cam_far = 1.41421356f * 0.5f * chunk_size * world_draw_dist;
+float const cam_near = 0.01f, cam_far =
+  1.41421356f * 0.5f * chunk_size * world_draw_dist;
 
 m4f cam_get_proj(cam *c) {
   if (c->shade) {
@@ -55,7 +56,7 @@ m4f cam_get_proj(cam *c) {
   }
 }
 
-void shader_verify(uint gl_id) {
+void shdr_verify(uint gl_id) {
   int is_ok;
   char info_log[1024];
   gl_get_shaderiv(gl_id, GL_COMPILE_STATUS, &is_ok);
@@ -65,15 +66,39 @@ void shader_verify(uint gl_id) {
   }
 }
 
-uint shader_compile(shader_spec s) {
+uint shdr_compile(shdr_spec s) {
   FILE *f = fopen(s.path, "r");
   if (!f) {
-    throw_c("Failed to open file for shader_component!");
+    throw_c("Failed to open file for shdr_component!");
   }
 
   char *src = calloc(1 << 20, 1);
-  char block[64];
+  char block[512];
+  for (int i = 0; i < 512; i++) {
+    block[i] = 0;
+  }
+
   while (fgets(block, sizeof(block), f)) {
+    if (block[0] == '#') {
+      if (strncmp(block + 1, "include", 7) != 0) {
+        goto not_import;
+      }
+
+      for (int i = 0; i < sizeof(block); i++) {
+        if (block[i] == '>') {
+          block[i] = '\0';
+          break;
+        }
+      }
+
+      char const *to_import = block + 1 + 7 + 2;
+      char *file_contents = read_txt_file(to_import);
+      strcat(src, file_contents);
+      free(file_contents);
+      continue;
+    }
+
+    not_import:;
     strcat(src, block);
   }
 
@@ -81,7 +106,7 @@ uint shader_compile(shader_spec s) {
   gl_shader_source(gl_id, 1, (char const *[]){src},
                    (int[]){(int)strlen(src)});
   gl_compile_shader(gl_id);
-  shader_verify(gl_id);
+  shdr_verify(gl_id);
 
   free(src);
   fclose(f);
@@ -99,18 +124,18 @@ void prog_verify(uint gl_id) {
   }
 }
 
-shader shader_new(uint n, shader_spec *shaders) {
+shdr shdr_new(uint n, shdr_spec *shdrs) {
   uint gl_ids[n], gl_id = gl_create_program();
 
   for (int i = 0; i < n; i++) {
-    gl_ids[i] = shader_compile(shaders[i]);
+    gl_ids[i] = shdr_compile(shdrs[i]);
     gl_attach_shader(gl_id, gl_ids[i]);
   }
 
   gl_link_program(gl_id);
   prog_verify(gl_id);
 
-  return (shader){.id = gl_id};
+  return (shdr){.id = gl_id};
 }
 
 struct vao vao_new(buf *vbo, buf *ibo, uint n, attrib *attrs) {
@@ -168,7 +193,7 @@ void buf_data(buf *b, uint usage, ssize_t size_in_bytes, void *data) {
   gl_named_buffer_data(b->id, size_in_bytes, data, usage);
 }
 
-void shader_bind(shader *s) {
+void shdr_bind(shdr *s) {
   gl_use_program(s->id);
 }
 
@@ -180,39 +205,39 @@ void buf_bind(buf *b) {
   gl_bind_buffer(b->type, b->id);
 }
 
-void shader_mat4(shader *s, char const *n, m4f m) {
-  shader_bind(s);
+void shdr_m4f(shdr *s, char const *n, m4f m) {
+  shdr_bind(s);
   gl_uniform_matrix_4fv(gl_get_uniform_location(s->id, n), 1, GL_TRUE,
                         &m.v[0][0]);
 }
 
-void shader_int(shader *s, char const *n, int m) {
-  shader_bind(s);
+void shdr_1i(shdr *s, char const *n, int m) {
+  shdr_bind(s);
   gl_uniform_1i(gl_get_uniform_location(s->id, n), m);
 }
 
-void shader_float(shader *s, char const *n, float m) {
-  shader_bind(s);
+void shdr_1f(shdr *s, char const *n, float m) {
+  shdr_bind(s);
   gl_uniform_1f(gl_get_uniform_location(s->id, n), m);
 }
 
-void shader_vec2(shader *s, char const *n, v2f m) {
-  shader_bind(s);
+void shdr_2f(shdr *s, char const *n, v2f m) {
+  shdr_bind(s);
   gl_uniform_2f(gl_get_uniform_location(s->id, n), m.x, m.y);
 }
 
-void shader_vec3(shader *s, char const *n, v3f m) {
-  shader_bind(s);
+void shdr_3f(shdr *s, char const *n, v3f m) {
+  shdr_bind(s);
   gl_uniform_3f(gl_get_uniform_location(s->id, n), m.x, m.y, m.z);
 }
 
-void shader_vec3_v(shader *s, char const *n, v3f *m, int amt) {
-  shader_bind(s);
+void shdr_3fv(shdr *s, char const *n, v3f *m, int amt) {
+  shdr_bind(s);
   gl_uniform_3fv(gl_get_uniform_location(s->id, n), amt, (float *)m);
 }
 
-void shader_vec4(shader *s, char const *n, v4f m) {
-  shader_bind(s);
+void shdr_4f(shdr *s, char const *n, v4f m) {
+  shdr_bind(s);
   gl_uniform_4f(gl_get_uniform_location(s->id, n), m.x, m.y, m.z, m.w);
 }
 
@@ -408,39 +433,39 @@ void fbo_resize(fbo *f, int width, int height, uint n, uint *bufs) {
   }
 }
 
-void to_cmyk_up(shader *s, to_cmyk args) {
-  shader_bind(s);
+void to_cmyk_up(shdr *s, to_cmyk args) {
+  shdr_bind(s);
   tex_bind(args.tex, args.unit);
-  shader_int(s, "u_tex", args.unit);
+  shdr_1i(s, "u_tex", args.unit);
 }
 
-void halftone_up(shader *s, halftone args) {
-  shader_bind(s);
+void halftone_up(shdr *s, halftone args) {
+  shdr_bind(s);
   tex_bind(args.cmyk, args.unit);
-  shader_int(s, "u_cmyk", args.unit);
-  shader_vec2(s, "u_scr_size", args.scr_size);
-  shader_float(s, "u_dots_per_line", (float)args.dots_per_line);
+  shdr_1i(s, "u_cmyk", args.unit);
+  shdr_2f(s, "u_scr_size", args.scr_size);
+  shdr_1f(s, "u_dots_per_line", (float)args.dots_per_line);
 }
 
-void blit_up(shader *s, blit args) {
-  shader_bind(s);
+void blit_up(shdr *s, blit args) {
+  shdr_bind(s);
   tex_bind(args.tex, args.unit);
-  shader_int(s, "u_tex", args.unit);
+  shdr_1i(s, "u_tex", args.unit);
 }
 
-void blur_up(shader *s, blur args) {
-  shader_bind(s);
+void blur_up(shdr *s, blur args) {
+  shdr_bind(s);
   tex_bind(args.tex, args.unit);
-  shader_int(s, "u_tex", args.unit);
-  shader_vec2(s, "u_scr_size", args.scr_size);
+  shdr_1i(s, "u_tex", args.unit);
+  shdr_2f(s, "u_scr_size", args.scr_size);
 }
 
-void dither_up(shader *s, dither args) {
-  shader_bind(s);
+void dither_up(shdr *s, dither args) {
+  shdr_bind(s);
   tex_bind(args.tex, args.unit);
-  shader_int(s, "u_tex0", args.unit);
-  shader_vec3_v(s, "u_pal", args.pal, args.pal_size);
-  shader_int(s, "u_pal_size", args.pal_size);
+  shdr_1i(s, "u_tex0", args.unit);
+  shdr_3fv(s, "u_pal", args.pal, args.pal_size);
+  shdr_1i(s, "u_pal_size", args.pal_size);
 }
 
 mesh
@@ -534,10 +559,10 @@ lmap mod_load_mtl(char const *path) {
   char name[64];
   while (fgets(line, 256, f)) {
     mtl mat;
-    int r = sscanf(line, "%63s %u %u %f %f %f %f %d", name, &mat.dark,
+    int r = sscanf(line, "%63s %u %u %f %f %f %f %d %f", name, &mat.dark,
                    &mat.light, &mat.light_model.x, &mat.light_model.y,
-                   &mat.light_model.z, &mat.shine, &mat.cull);
-    if (r < 8) {
+                   &mat.light_model.z, &mat.shine, &mat.cull, &mat.wind);
+    if (r < 9) {
       fprintf(stderr, "problem! %s in ", line);
       throw_c("mod_load_mtl: failed to parse mtl!");
     }
@@ -603,42 +628,35 @@ void mod_draw(mod *m, draw_src s, cam *c, m4f t) {
   gl_disable(GL_CULL_FACE);
 }
 
-shader *mod_get_sh(draw_src s, cam *c, mtl m, m4f t) {
-  static shader *cam = NULL;
-  static shader *shade = NULL;
+shdr *mod_get_sh(draw_src s, cam *c, mtl m, m4f t) {
+  static shdr *cam = NULL;
+  static shdr *shade = NULL;
   if (!cam) {
-    cam = objdup(shader_new(2,
-                            (shader_spec[]){
-                              {GL_VERTEX_SHADER,   "res/mod.vsh"},
-                              {GL_FRAGMENT_SHADER, "res/mod_light.fsh"},
+    cam = objdup(shdr_new(2,
+                          (shdr_spec[]){
+                            {GL_VERTEX_SHADER,   "res/mod.vsh"},
+                            {GL_FRAGMENT_SHADER, "res/mod_light.fsh"},
+                          }));
+
+    shade = objdup(shdr_new(2,
+                            (shdr_spec[]){
+                              {GL_VERTEX_SHADER,   "res/mod_depth.vsh"},
+                              {GL_FRAGMENT_SHADER, "res/mod_depth.fsh"},
                             }));
-
-    shade = objdup(shader_new(2,
-                              (shader_spec[]){
-                                {GL_VERTEX_SHADER,   "res/mod_depth.vsh"},
-                                {GL_FRAGMENT_SHADER, "res/mod_depth.fsh"},
-                              }));
   }
 
-  shader *cur = s == ds_cam ? cam : shade;
+  shdr *cur = s == ds_cam ? cam : shade;
 
-  m4f t_no_scale = t;
-
-  for (int i = 0; i < 3; i++) {
-    v3f a = {t.v[i][0], t.v[i][1], t.v[i][2]};
-    v3_norm(&a);
-    t_no_scale.v[i][0] = a.v[0], t_no_scale.v[i][1] = a.v[1], t_no_scale.v[i][2] = a.v[2];
-  }
-
-  shader_mat4(cur, "u_vp", c->vp);
-  shader_vec3(cur, "u_eye", c->pos);
-  shader_vec3(cur, "u_light_model", m.light_model);
-  shader_vec3(cur, "u_light", dreamy_haze[m.light]);
-  shader_vec3(cur, "u_dark", dreamy_haze[m.dark]);
-  shader_float(cur, "u_shine", m.shine);
-  shader_mat4(cur, "u_model", t);
-  shader_mat4(cur, "u_model_no_scale", t_no_scale);
-  shader_bind(cur);
+  shdr_m4f(cur, "u_vp", c->vp);
+  shdr_3f(cur, "u_eye", cam_get_eye(c));
+  shdr_3f(cur, "u_light_model", m.light_model);
+  shdr_3f(cur, "u_light", dreamy_haze[m.light]);
+  shdr_3f(cur, "u_dark", dreamy_haze[m.dark]);
+  shdr_1f(cur, "u_shine", m.shine);
+  shdr_1f(cur, "u_wind", m.wind);
+  shdr_m4f(cur, "u_model", t);
+  shdr_1f(cur, "u_time", app_now() / 1000.f);
+  shdr_bind(cur);
 
   return cur;
 }
@@ -678,10 +696,13 @@ void cam_rot(cam *c) {
   float const overshoot_dist = 1.33f;
   float const overshoot_fov = 1.33f;
 
-  look = m4_look(v3_sub(c->pos, v3_mul(c->front, c->dist * overshoot_dist)), c->front,
+  look = m4_look(v3_sub(c->pos, v3_mul(c->front, c->dist * overshoot_dist)),
+                 c->front,
                  c->up);
-  proj = m4_persp(rad(c->zoom * overshoot_fov), c->aspect * overshoot_fov, 0.01f,
-                  sqrtf(2.f) * 0.5f * chunk_size * world_draw_dist * overshoot_dist);
+  proj = m4_persp(rad(c->zoom * overshoot_fov), c->aspect * overshoot_fov,
+                  0.01f,
+                  sqrtf(2.f) * 0.5f * chunk_size * world_draw_dist *
+                  overshoot_dist);
   c->cvp = m4_mul(look, proj);
 }
 
@@ -772,40 +793,42 @@ void imod_add(imod *m, m4f t) {
   arr_add(&m->model, &t_tpose);
 }
 
-shader *imod_get_sh(draw_src s, cam *c, mtl m) {
-  static shader *cam = NULL;
-  static shader *shade = NULL;
+shdr *imod_get_sh(draw_src s, cam *c, mtl m) {
+  static shdr *cam = NULL;
+  static shdr *shade = NULL;
   if (!cam) {
-    cam = objdup(shader_new(2, (shader_spec[]){
+    cam = objdup(shdr_new(2, (shdr_spec[]){
       GL_VERTEX_SHADER, "res/imod.vsh",
       GL_FRAGMENT_SHADER, "res/mod_light.fsh"
     }));
 
-    shade = objdup(shader_new(2, (shader_spec[]){
+    shade = objdup(shdr_new(2, (shdr_spec[]){
       GL_VERTEX_SHADER, "res/imod_depth.vsh",
       GL_FRAGMENT_SHADER, "res/mod_depth.fsh"
     }));
   }
 
-  shader *cur = s == ds_cam ? cam : shade;
+  shdr *cur = s == ds_cam ? cam : shade;
 
-  shader_mat4(cur, "u_vp", c->vp);
-  shader_vec3(cur, "u_eye", c->pos);
-  shader_vec3(cur, "u_light_model", m.light_model);
-  shader_vec3(cur, "u_light", dreamy_haze[m.light]);
-  shader_vec3(cur, "u_dark", dreamy_haze[m.dark]);
-  shader_float(cur, "u_shine", m.shine);
-  shader_bind(cur);
+  shdr_m4f(cur, "u_vp", c->vp);
+  shdr_3f(cur, "u_eye", cam_get_eye(c));
+  shdr_3f(cur, "u_light_model", m.light_model);
+  shdr_3f(cur, "u_light", dreamy_haze[m.light]);
+  shdr_3f(cur, "u_dark", dreamy_haze[m.dark]);
+  shdr_1f(cur, "u_shine", m.shine);
+  shdr_1f(cur, "u_wind", m.wind);
+  shdr_1f(cur, "u_time", app_now() / 1000.f);
+  shdr_bind(cur);
 
   return cur;
 }
 
-void crt_up(shader *s, crt args) {
-  shader_bind(s);
+void crt_up(shdr *s, crt args) {
+  shdr_bind(s);
   tex_bind(args.tex, args.unit);
-  shader_int(s, "u_tex0", args.unit);
-  shader_float(s, "u_aspect", args.aspect);
-  shader_float(s, "u_lores", args.lores);
+  shdr_1i(s, "u_tex0", args.unit);
+  shdr_1f(s, "u_aspect", args.aspect);
+  shdr_1f(s, "u_lores", args.lores);
 }
 
 int cam_test_box(cam *c, box3 b) {
@@ -838,17 +861,22 @@ int cam_test_box(cam *c, box3 b) {
   return inside;
 }
 
-void dof_up(shader *s, dof args) {
-  shader_bind(s);
+void dof_up(shdr *s, dof args) {
+  shdr_bind(s);
   tex_bind(args.tex, args.tex_unit);
   tex_bind(args.depth, args.depth_unit);
-  shader_int(s, "u_tex", args.tex_unit);
-  shader_vec2(s, "u_tex_size", (v2f){1.f / args.screen_size.x, 1.f / args.screen_size.y});
-  shader_int(s, "u_depth", args.depth_unit);
-  shader_int(s, "u_size", args.size);
-  shader_float(s, "u_min_depth", args.min_depth);
-  shader_float(s, "u_max_depth", args.max_depth);
-  shader_float(s, "u_separation", args.separation);
-  shader_float(s, "u_near", cam_near);
-  shader_float(s, "u_far", cam_far);
+  shdr_1i(s, "u_tex", args.tex_unit);
+  shdr_2f(s, "u_tex_size",
+          (v2f){1.f / args.screen_size.x, 1.f / args.screen_size.y});
+  shdr_1i(s, "u_depth", args.depth_unit);
+  shdr_1i(s, "u_size", args.size);
+  shdr_1f(s, "u_min_depth", args.min_depth);
+  shdr_1f(s, "u_max_depth", args.max_depth);
+  shdr_1f(s, "u_separation", args.separation);
+  shdr_1f(s, "u_near", cam_near);
+  shdr_1f(s, "u_far", cam_far);
+}
+
+v3f cam_get_eye(cam *c) {
+  return v3_sub(c->pos, v3_mul(c->front, c->dist));
 }

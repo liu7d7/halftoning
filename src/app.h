@@ -16,13 +16,13 @@ typedef struct app {
   v2i lo_dim;
   v2f mouse;
   vao post;
-  shader dither, blit, crt, dilate;
+  shdr dither, blit, crt, dilate;
   cam cam, shade_cam;
   fbo low_res, low_res_2, main, shade, dof;
   world *world;
   bool is_mouse_captured, is_rendering_halftone;
   float dt;
-  avg_num mspt, mspf, msps;
+  avg_num mspt, mspf, mspd;
   font font;
   win win;
   int player;

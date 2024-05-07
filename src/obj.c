@@ -4,6 +4,7 @@
 #include "hana.h"
 
 #define n_trees 4
+#define n_trees_lod 8
 
 static struct {
   mod *hana;
@@ -14,7 +15,7 @@ static struct {
 void lazy_init() {
   if (lazy.init) return;
 
-  static char const *paths[n_trees] = {
+  static char const *paths[n_trees_lod] = {
     "res/bush2.obj",
     "res/bush3.obj",
     "res/tree1.obj",
@@ -28,6 +29,9 @@ void lazy_init() {
   }
 
   lazy.hana = objdup(mod_new_mem(hana_str, hana_str_len, "res/hana.obj"));
+
+  lazy.ball = imod_new(mod_new("res/ball.obj"));
+  lazy.cyl = imod_new(mod_new("res/cylinder.obj"));
 
   lazy.init = 1;
 }
@@ -161,8 +165,6 @@ obj tree_new(v3f pos, v3f dir) {
 
   int idx = rndi(0, n_trees);
   if (idx >= 2) dir = v3_uy;
-  cap new_phys = phys[idx];
-  new_phys.norm = dir;
 
   return (obj){
     .tree = {
@@ -173,7 +175,7 @@ obj tree_new(v3f pos, v3f dir) {
       .rot = rndf(0, 2.f * M_PIF)},
     .dynamic = 0,
     .body = {
-      .cap = new_phys,
+      .cap = phys[idx],
       .pos = v3_add(pos, off[idx]),
       .slip = 0.9f}
   };

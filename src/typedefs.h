@@ -60,10 +60,11 @@ static u8 *read_bin_file(char const *path) {
   return buf;
 }
 
-static u8 *read_txt_file_len(char const *path, size_t *len) {
+static char *read_txt_file_len(char const *path, size_t *len) {
   FILE *file = fopen(path, "r");
-  u8 *result = 0;
+  char *result = 0;
   if (!file) {
+    fprintf(stderr, "problem! %s at\n", path);
     throw_c("read_txt_file: failed to read text file at path!");
   }
 
@@ -71,8 +72,8 @@ static u8 *read_txt_file_len(char const *path, size_t *len) {
   fseek(file, 0L, SEEK_END);
   file_size = (size_t)ftell(file);
   fseek(file, 0L, SEEK_SET);
-  result = (u8 *)calloc(file_size + 1, sizeof(u8));
-  if (!fread(result, sizeof(u8), file_size, file)) {
+  result = (char *)calloc(file_size + 1, sizeof(char));
+  if (!fread(result, sizeof(char), file_size, file)) {
     throw_c("read_txt_file: failed to read from text file!");
   }
 
@@ -83,7 +84,7 @@ static u8 *read_txt_file_len(char const *path, size_t *len) {
   return result;
 }
 
-static u8 *read_txt_file(char const *path) {
+static char *read_txt_file(char const *path) {
   return read_txt_file_len(path, NULL);
 }
 

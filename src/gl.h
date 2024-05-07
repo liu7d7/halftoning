@@ -33,38 +33,40 @@ void cam_tick(cam *c, struct app *a);
 
 void cam_rot(cam *c);
 
+v3f cam_get_eye(cam *c);
+
 m4f cam_get_look(cam *c);
 
 m4f cam_get_proj(cam *c);
 
 int cam_test_box(cam *c, box3 b);
 
-typedef struct shader {
+typedef struct shdr {
   uint id;
-} shader;
+} shdr;
 
-typedef struct shader_spec {
+typedef struct shdr_spec {
   uint type;
   char const *path;
-} shader_spec;
+} shdr_spec;
 
-shader shader_new(uint n, shader_spec *shaders);
+shdr shdr_new(uint n, shdr_spec *shdrs);
 
-void shader_bind(shader *s);
+void shdr_bind(shdr *s);
 
-void shader_mat4(shader *s, char const *n, m4f m);
+void shdr_m4f(shdr *s, char const *n, m4f m);
 
-void shader_int(shader *s, char const *n, int m);
+void shdr_1i(shdr *s, char const *n, int m);
 
-void shader_float(shader *s, char const *n, float m);
+void shdr_1f(shdr *s, char const *n, float m);
 
-void shader_vec2(shader *s, char const *n, v2f m);
+void shdr_2f(shdr *s, char const *n, v2f m);
 
-void shader_vec3(shader *s, char const *n, v3f m);
+void shdr_3f(shdr *s, char const *n, v3f m);
 
-void shader_vec3_v(shader *s, char const *n, v3f *m, int amt);
+void shdr_3fv(shdr *s, char const *n, v3f *m, int amt);
 
-void shader_vec4(shader *s, char const *n, v4f m);
+void shdr_4f(shdr *s, char const *n, v4f m);
 
 typedef struct buf {
   uint id;
@@ -191,7 +193,7 @@ typedef struct to_cmyk {
   int unit;
 } to_cmyk;
 
-void to_cmyk_up(shader *s, to_cmyk args);
+void to_cmyk_up(shdr *s, to_cmyk args);
 
 typedef struct halftone {
   // non owning!
@@ -202,7 +204,7 @@ typedef struct halftone {
   int dots_per_line;
 } halftone;
 
-void halftone_up(shader *s, halftone args);
+void halftone_up(shdr *s, halftone args);
 
 typedef struct blit {
   // non owning!
@@ -210,7 +212,7 @@ typedef struct blit {
   int unit;
 } blit;
 
-void blit_up(shader *s, blit args);
+void blit_up(shdr *s, blit args);
 
 typedef struct dof {
   // non owning!
@@ -225,7 +227,7 @@ typedef struct dof {
   v2f screen_size;
 } dof;
 
-void dof_up(shader *s, dof args);
+void dof_up(shdr *s, dof args);
 
 typedef struct crt {
   // non owning!
@@ -236,7 +238,7 @@ typedef struct crt {
   float lores;
 } crt;
 
-void crt_up(shader *s, crt args);
+void crt_up(shdr *s, crt args);
 
 typedef struct blur {
   // non owning!
@@ -246,7 +248,7 @@ typedef struct blur {
   v2f scr_size;
 } blur;
 
-void blur_up(shader *s, blur args);
+void blur_up(shdr *s, blur args);
 
 typedef struct dither {
   // non owning!
@@ -257,7 +259,7 @@ typedef struct dither {
   int pal_size;
 } dither;
 
-void dither_up(shader *s, dither args);
+void dither_up(shdr *s, dither args);
 
 #define mod_max_bone_influence 4
 
@@ -271,6 +273,7 @@ typedef struct mtl {
   v3f light_model; // ambient, diffuse, specular
   float shine;
   int cull;
+  float wind;
 } mtl;
 
 typedef struct mesh {
@@ -292,7 +295,7 @@ typedef struct mod {
   box3 bounds;
 } mod;
 
-shader *mod_get_sh(draw_src s, cam *c, mtl m, m4f t);
+shdr *mod_get_sh(draw_src s, cam *c, mtl m, m4f t);
 
 mod mod_new(char const *path);
 
@@ -314,7 +317,7 @@ typedef struct imod {
 } imod;
 
 imod *imod_new(mod m);
-shader *imod_get_sh(draw_src s, cam *c, mtl m);
+shdr *imod_get_sh(draw_src s, cam *c, mtl m);
 void imod_draw(draw_src s, cam *c);
 void imod_add(imod *m, m4f trans);
 

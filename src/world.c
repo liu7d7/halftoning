@@ -187,7 +187,7 @@ void world_draw(world *w, draw_src s, cam *c, float d) {
   static mtl chunk_mtl = {
     .light = 6,
     .dark = 0,
-    .light_model = {0, 0.72f, 0}
+    .light_model = {0, 0.8f, 0}
   };
 
   mod_get_sh(s, c, chunk_mtl, m4_ident);
