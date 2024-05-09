@@ -7,14 +7,32 @@
 
 static struct {
   mod *hana;
-  imod *ball, *cyl, *trees[n_trees];
+  imod *ball, *cyl, *trunks[n_trees * 2], *leaves[n_trees];
   int init;
 } lazy;
 
 void lazy_init() {
   if (lazy.init) return;
 
-  static char const *paths[n_trees] = {
+  static char const *trunk_paths[n_trees * 2] = {
+    "res/bush2_trunk.obj",
+    "res/bush3_trunk.obj",
+    "res/tree1_trunk.obj",
+    "res/tree2_trunk.obj",
+    "res/bush2_trunk_dec.obj",
+    "res/bush3_trunk_dec.obj",
+    "res/tree1_trunk_dec.obj",
+    "res/tree2_trunk_dec.obj",
+  };
+
+  static char const *leaf_paths[n_trees] = {
+    "res/bush2_leaves.obj",
+    "res/bush3_leaves.obj",
+    "res/tree1_leaves.obj",
+    "res/tree2_leaves.obj",
+  };
+
+  static char const *mtl_paths[n_trees] = {
     "res/bush2.obj",
     "res/bush3.obj",
     "res/tree1.obj",
@@ -22,7 +40,9 @@ void lazy_init() {
   };
 
   for (int i = 0; i < n_trees; i++) {
-    lazy.trees[i] = imod_new(mod_new(paths[i]));
+    lazy.leaves[i] = imod_new(mod_new_indirect_mtl(leaf_paths[i], mtl_paths[i]));
+    lazy.trunks[i] = imod_new(mod_new_indirect_mtl(trunk_paths[i], mtl_paths[i]));
+    lazy.trunks[i + n_trees] = imod_new(mod_new_indirect_mtl(trunk_paths[i + n_trees], mtl_paths[i]));
   }
 
   lazy.hana = objdup(mod_new_mem(hana_str, hana_str_len, "res/hana.obj"));
@@ -62,13 +82,20 @@ void obj_draw(obj *o, draw_src s, cam *c, float d) {
     }
     case ot_test: {
       float r = o->body.ball.rad;
-      imod_add(lazy.ball, m4_mul(m4_scale(r, r, r), m4_trans_v(obj_get_ipos(o, d))));
+      imod_add(lazy.ball,
+               m4_mul(m4_scale(r, r, r), m4_trans_v(obj_get_ipos(o, d))));
       break;
     }
     case ot_tree: {
       tree *t = &o->tree;
-      imod_add(lazy.trees[t->idx], m4_mul(m4_mul(m4_rot_y(t->rot), m4_chg_axis(t->dir, 1)),
-                                          m4_trans_v(v3_sub(o->body.pos, t->offset))));
+      imod_add(lazy.leaves[t->idx],
+               m4_mul(m4_mul(m4_rot_y(t->rot), m4_chg_axis(t->dir, 1)),
+                      m4_trans_v(v3_sub(o->body.pos, t->offset))));
+      imod_add(lazy.trunks[t->idx + n_trees *
+                                    (v3_dist(cam_get_eye(c), o->body.pos) >
+                                     45.f)],
+               m4_mul(m4_mul(m4_rot_y(t->rot), m4_chg_axis(t->dir, 1)),
+                      m4_trans_v(v3_sub(o->body.pos, t->offset))));
       break;
     }
   }
@@ -175,7 +202,8 @@ obj tree_new(v3f pos, v3f dir) {
       .idx = idx,
       .offset = v3_add(off[idx], v3_mul(dir, 0.25f)),
       .dir = dir,
-      .rot = rndf(0, 2.f * M_PIF)},
+      .rot = rndf(0, 2.f * M_PIF),
+      .box = box3_fit(lazy.trunks[idx]->bounds, lazy.leaves[idx]->bounds)},
     .dynamic = 0,
     .body = {
       .cap = phys[idx],
@@ -188,10 +216,11 @@ box3 obj_get_box(obj *o) {
   switch (o->type) {
     case ot_hana: {
       cap c = o->body.cap;
-      return box3_add(lazy.hana->bounds, v3_sub(o->body.pos, v3_mul(c.norm, c.ext + c.rad)));
+      return box3_add(lazy.hana->bounds,
+                      v3_sub(o->body.pos, v3_mul(c.norm, c.ext + c.rad)));
     }
     case ot_tree: {
-      return box3_add(lazy.trees[o->tree.idx]->bounds, v3_sub(o->body.pos, o->tree.offset));
+      return box3_add(o->tree.box, v3_sub(o->body.pos, o->tree.offset));
     }
     case ot_test: {
       return body_get_box(&o->body);

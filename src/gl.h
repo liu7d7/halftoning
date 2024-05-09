@@ -299,8 +299,13 @@ typedef struct mesh {
   int n_inds;
   mtl mat;
 
+  buf vbo, ibo;
   vao vao;
+  char const *name;
 } mesh;
+
+void vao_del(struct vao *v);
+void buf_del(buf *b);
 
 typedef struct mod {
   tex *texes;
@@ -337,5 +342,7 @@ imod *imod_new(mod m);
 shdr *imod_get_sh(draw_src s, cam *c, mtl m);
 void imod_draw(draw_src s, cam *c);
 void imod_add(imod *m, m4f trans);
+
+mod mod_new_indirect_mtl(const char *path, const char *mtl);
 
 int *quad_indices(int w, int h);

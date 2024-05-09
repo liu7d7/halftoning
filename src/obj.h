@@ -20,6 +20,7 @@ typedef struct tree {
   v3f offset, dir;
   int idx;
   float rot;
+  box3 box;
 } tree;
 
 typedef struct obj {

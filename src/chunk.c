@@ -80,7 +80,7 @@ chunk chunk_new(world *w, v2i pos) {
 
   memcpy(c.data, verts, chunk_len * chunk_len * sizeof(obj_vtx));
 
-  if (rndf(0, 1) > 0.5) {
+  if (rndf(0, 1) > 0.45) {
     float xo = rndf(0, chunk_size), zo = rndf(0, chunk_size);
     obj t = tree_new(chunk_get_posf(pos, xo, zo), norm_at(pos, xo, zo));
     world_add_obj(w, &t);

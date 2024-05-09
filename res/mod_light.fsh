@@ -2,7 +2,7 @@
 
 layout (location = 0) in vec3 v_pos;
 layout (location = 1) in vec3 v_norm;
-layout (location = 2) in vec4 v_light_space_pos;
+layout (location = 2) in vec3 v_light_space_pos;
 
 layout (location = 0) out vec4 f_color;
 
@@ -29,7 +29,7 @@ const float gauss_5x5[5][5] = {
 };
 
 float shadow_calc() {
-  vec3 proj = (v_light_space_pos.xyz / v_light_space_pos.w) * 0.5 + 0.5;
+  vec3 proj = v_light_space_pos;
   float shadow = 0.;
   for (int i = -1; i <= 1; i++) {
     for (int j = -1; j <= 1; j++) {

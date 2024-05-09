@@ -179,6 +179,10 @@ buf buf_new(uint type) {
   return b;
 }
 
+void buf_del(buf *b) {
+  gl_delete_buffers(1, &b->id);
+}
+
 void *buf_rw(buf *b, size_t size) {
   gl_named_buffer_storage(b->id, size, NULL, GL_DYNAMIC_STORAGE_BIT);
   return gl_map_named_buffer(b->id, GL_READ_WRITE);
@@ -199,6 +203,10 @@ void shdr_bind(shdr *s) {
 
 void vao_bind(struct vao *v) {
   gl_bind_vertex_array(v->id);
+}
+
+void vao_del(struct vao *v) {
+  gl_delete_vertex_arrays(1, &v->id);
 }
 
 void buf_bind(buf *b) {
@@ -479,6 +487,8 @@ mod_load_mesh(mod *m, lmap *mats, box3 *b, struct aiMesh *mesh,
               const struct aiScene *scene) {
   obj_vtx *vtxs = malloc(sizeof(obj_vtx) * mesh->mNumVertices);
 
+  size_t len = strlen(mesh->mName.data);
+
   char *name = mesh->mName.data;
   mtl *mat = lmap_at(mats, &name);
   if (!mat) {
@@ -515,13 +525,19 @@ mod_load_mesh(mod *m, lmap *mats, box3 *b, struct aiMesh *mesh,
              arr_len(inds),
              inds);
 
+  char *heap_name = malloc(len + 1);
+  strcpy_s(heap_name, len + 1, name);
+
   struct mesh me = {
     .vtxs = vtxs,
     .n_vtxs = (int)mesh->mNumVertices,
     .n_inds = arr_len(inds),
     .vao = vao_new(&vbo, &ibo, 2,
                    (attrib[]){attr_3f, attr_3f}),
-    .mat = *mat
+    .mat = *mat,
+    .name = heap_name,
+    .ibo = ibo,
+    .vbo = vbo
   };
 
   arr_del(inds);
@@ -613,6 +629,13 @@ mod mod_new(const char *path) {
   return mod_from_scene(scene, path);
 }
 
+mod mod_new_indirect_mtl(const char *path, const char *mtl) {
+  struct aiScene const *scene =
+    aiImportFile(path, aiProcessPreset_TargetRealtime_Fast);
+
+  return mod_from_scene(scene, mtl);
+}
+
 mod mod_new_mem(const char *mem, size_t len, const char *path) {
   struct aiScene const *scene =
     aiImportFileFromMemory(mem, len, aiProcessPreset_TargetRealtime_Fast, "obj");
@@ -671,13 +694,15 @@ void cam_make_frustum(cam *c) {
   frustum *f = &c->frustum_shade;
   float half_v = cam_far * tanf(c->zoom * .5f);
   float half_h = half_v * c->aspect;
-  v3f front = v3_mul(c->front, cam_far + 4.f);
-  v3f eye = v3_sub(cam_get_eye(c), v3_mul(c->front, 4.f));
+  v3f front = v3_mul(c->front, cam_far + 6.f);
+  v3f eye = v3_sub(cam_get_eye(c), v3_mul(c->front, 6.f));
 
   f->near = plane_new(v3_add(eye, v3_mul(c->front, cam_near)), c->front);
   f->far = plane_new(v3_add(eye, front), v3_neg(c->front));
+
   f->right = plane_new(eye, v3_cross(v3_sub(front, v3_mul(c->right, half_h)), c->up));
-  f->right = plane_new(eye, v3_cross(c->up, v3_add(front, v3_mul(c->right, half_h))));
+  f->left = plane_new(eye, v3_cross(c->up, v3_add(front, v3_mul(c->right, half_h))));
+
   f->top = plane_new(eye, v3_cross(c->right, v3_sub(front, v3_mul(c->up, half_v))));
   f->bottom = plane_new(eye, v3_cross(v3_add(front, v3_mul(c->up, half_v)), c->right));
 
@@ -689,8 +714,10 @@ void cam_make_frustum(cam *c) {
 
   f->near = plane_new(v3_add(eye, v3_mul(c->front, cam_near)), c->front);
   f->far = plane_new(v3_add(eye, front), v3_neg(c->front));
+
   f->right = plane_new(eye, v3_cross(v3_sub(front, v3_mul(c->right, half_h)), c->up));
-  f->right = plane_new(eye, v3_cross(c->up, v3_add(front, v3_mul(c->right, half_h))));
+  f->left = plane_new(eye, v3_cross(c->up, v3_add(front, v3_mul(c->right, half_h))));
+
   f->top = plane_new(eye, v3_cross(c->right, v3_sub(front, v3_mul(c->up, half_v))));
   f->bottom = plane_new(eye, v3_cross(v3_add(front, v3_mul(c->up, half_v)), c->right));
 }
@@ -898,6 +925,7 @@ float plane_sdf(plane p, v3f pt) {
 }
 
 plane plane_new(v3f point, v3f norm) {
+  v3_norm(&norm);
   return (plane){
     .norm = norm,
     .dist = v3_dot(norm, point)
