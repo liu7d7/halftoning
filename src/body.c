@@ -378,7 +378,7 @@ v3f body_get_ipos(body *o, float d) {
 hit hit_inv(hit h) {
   return (hit){
     h.is_hit,
-    v3_inv(h.norm),
+    v3_neg(h.norm),
     h.push,
   };
 }

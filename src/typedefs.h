@@ -281,7 +281,7 @@ inline static v3f v3_add(v3f lhs, v3f rhs) {
 
 [[gnu::always_inline]]
 
-inline static v3f v3_inv(v3f v) {
+inline static v3f v3_neg(v3f v) {
   return (v3f){-v.x, -v.y, -v.z};
 }
 

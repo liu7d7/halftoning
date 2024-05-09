@@ -4,7 +4,6 @@
 #include "hana.h"
 
 #define n_trees 4
-#define n_trees_lod 8
 
 static struct {
   mod *hana;
@@ -15,13 +14,11 @@ static struct {
 void lazy_init() {
   if (lazy.init) return;
 
-  static char const *paths[n_trees_lod] = {
+  static char const *paths[n_trees] = {
     "res/bush2.obj",
     "res/bush3.obj",
     "res/tree1.obj",
     "res/tree2.obj",
-//      "res/tree3.obj",
-//      "res/tree4.obj",
   };
 
   for (int i = 0; i < n_trees; i++) {
@@ -88,7 +85,13 @@ void hana_tick(obj *o) {
   if (app_is_key_down(a, GLFW_KEY_S)) forwards--;
   if (app_is_key_down(a, GLFW_KEY_D)) sideways++;
 
-  v3f final = v3_add(v3_mul(a->cam.front, forwards),
+  v3f front_xz = a->cam.front;
+  front_xz.y = 0.f;
+  if (v3_len(front_xz) >= 0.0001) {
+    v3_norm(&front_xz);
+  }
+
+  v3f final = v3_add(v3_mul(front_xz, forwards),
                      v3_mul(a->cam.right, sideways));
   bool moving = v3_dot(final, final) > 0.0001;
   if (moving) v3_norm(&final);

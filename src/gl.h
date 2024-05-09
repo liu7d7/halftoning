@@ -18,6 +18,19 @@ typedef enum draw_src {
   ds_n,
 } draw_src;
 
+typedef struct plane {
+  v3f norm;
+  float dist;
+} plane;
+
+plane plane_new(v3f point, v3f norm);
+
+float plane_sdf(plane p, v3f pt);
+
+typedef struct frustum {
+  plane top, bottom, left, right, far, near;
+} frustum;
+
 typedef struct cam {
   v3f pos, front, up, right, world_up;
   float target_yaw, yaw, target_pitch, pitch, zoom, aspect, ortho_size, dist;
@@ -25,6 +38,8 @@ typedef struct cam {
   v2f last_mouse_pos;
   bool has_last, shade;
   m4f vp, cvp;
+
+  frustum frustum_shade, frustum_cam;
 } cam;
 
 cam cam_new(v3f pos, v3f world_up, float yaw, float pitch, float aspect);
@@ -39,7 +54,7 @@ m4f cam_get_look(cam *c);
 
 m4f cam_get_proj(cam *c);
 
-int cam_test_box(cam *c, box3 b);
+int cam_test_box(cam *c, box3 b, draw_src s);
 
 typedef struct shdr {
   uint id;
@@ -120,7 +135,7 @@ int attrib_get_size_in_bytes(attrib *attr);
 typedef struct tex_spec {
   int width, height, min_filter, mag_filter;
   uint internal_format, format;
-  bool multisample;
+  bool multisample, shadow;
 
   // owning!
   // can be null!
@@ -139,7 +154,9 @@ tex_spec tex_spec_r16(int width, int height, int filter);
 
 tex_spec tex_spec_r8v(int width, int height, int filter, u8 *pixels);
 
-tex_spec tex_spec_depth24(int width, int height, int filter);
+tex_spec tex_spec_depth32(int width, int height, int filter);
+
+tex_spec tex_spec_shadow(int width, int height, int filter);
 
 typedef struct tex {
   uint id;

@@ -76,7 +76,7 @@ app app_new(int width, int height, const char *name) {
                     (fbo_spec[]){
                       {GL_COLOR_ATTACHMENT0, tex_spec_rgba8(width, height,
                                                             GL_LINEAR)},
-                      {GL_DEPTH_ATTACHMENT,  tex_spec_depth24(width, height,
+                      {GL_DEPTH_ATTACHMENT,  tex_spec_depth32(width, height,
                                                               GL_NEAREST)}
                     }),
     .dof = fbo_new(1,
@@ -87,8 +87,7 @@ app app_new(int width, int height, const char *name) {
     .shade = fbo_new(1,
                      (fbo_spec[]){
                        {GL_DEPTH_ATTACHMENT,
-                        tex_spec_depth24(shade_dim.x, shade_dim.y,
-                                         GL_LINEAR)}
+                        tex_spec_depth32(shade_dim.x, shade_dim.y, GL_LINEAR)}
                      }),
     .low_res = fbo_new(1, (fbo_spec[]){
       {GL_COLOR_ATTACHMENT0,
@@ -97,25 +96,25 @@ app app_new(int width, int height, const char *name) {
       {GL_COLOR_ATTACHMENT0,
        tex_spec_rgba16(lo_dim.x, lo_dim.y, GL_LINEAR)}}),
     .dither = shdr_new(2,
-                         (shdr_spec[]){
-                           {GL_VERTEX_SHADER,   "res/post.vsh"},
-                           {GL_FRAGMENT_SHADER, "res/dither.fsh"}
-                         }),
-    .blit = shdr_new(2,
                        (shdr_spec[]){
                          {GL_VERTEX_SHADER,   "res/post.vsh"},
-                         {GL_FRAGMENT_SHADER, "res/blit.fsh"}
+                         {GL_FRAGMENT_SHADER, "res/dither.fsh"}
                        }),
+    .blit = shdr_new(2,
+                     (shdr_spec[]){
+                       {GL_VERTEX_SHADER,   "res/post.vsh"},
+                       {GL_FRAGMENT_SHADER, "res/blit.fsh"}
+                     }),
     .crt = shdr_new(2,
-                      (shdr_spec[]){
-                        {GL_VERTEX_SHADER,   "res/post.vsh"},
-                        {GL_FRAGMENT_SHADER, "res/crt.fsh"}
-                      }),
+                    (shdr_spec[]){
+                      {GL_VERTEX_SHADER,   "res/post.vsh"},
+                      {GL_FRAGMENT_SHADER, "res/crt.fsh"}
+                    }),
     .dilate = shdr_new(2,
-                         (shdr_spec[]){
-                           {GL_VERTEX_SHADER,   "res/post.vsh"},
-                           {GL_FRAGMENT_SHADER, "res/dof_dilate.fsh"}
-                         }),
+                       (shdr_spec[]){
+                         {GL_VERTEX_SHADER,   "res/post.vsh"},
+                         {GL_FRAGMENT_SHADER, "res/dof_dilate.fsh"}
+                       }),
     .mspf = avg_num_new(120), .mspt = avg_num_new(120), .mspd = avg_num_new(
       120),
     .world = world_new(hana_new()),
@@ -230,6 +229,7 @@ void app_run(app *a) {
 
   while (!glfw_window_should_close(a->glfw_win)) {
     auto start = app_now();
+    a->n_tris = 0;
 
     gl_enable(GL_DEPTH_TEST);
 
@@ -312,7 +312,7 @@ void app_run(app *a) {
 
     gl_enable(GL_BLEND);
 
-    draw_rect(a, (v2f){10, 10}, (v2f){640, 20 + a->font.size * 4 + 10},
+    draw_rect(a, (v2f){10, 10}, (v2f){640, 20 + a->font.size * 6 + 10},
               (v4f){0.f, 0.f, 0.f, 0.5f});
     char text_buf[128];
     sprintf_s(text_buf, 128, "&bxyz&r: &b%.2f&r &b%.2f&r &b%.2f", a->cam.pos.x,
@@ -333,6 +333,13 @@ void app_run(app *a) {
               0xffffffff, 1, 1.f);
     sprintf_s(text_buf, 128, "&b# objects&r: &b%zu", arr_len(a->world->objs));
     font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 3},
+              0xffffffff, 1, 1.f);
+    sprintf_s(text_buf, 128, "&bculled&r: &b%f&r",
+              1.f - (float)a->n_drawn / (float)a->n_close);
+    font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 4},
+              0xffffffff, 1, 1.f);
+    sprintf_s(text_buf, 128, "&btris&r: &b%zu&r", a->n_tris);
+    font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 5},
               0xffffffff, 1, 1.f);
 
     avg_num_add(&a->mspd, (app_now() - start));

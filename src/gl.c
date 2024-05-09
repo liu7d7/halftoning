@@ -284,7 +284,7 @@ tex_spec tex_spec_r8v(int width, int height, int filter, u8 *pixels) {
   };
 }
 
-tex_spec tex_spec_depth24(int width, int height, int filter) {
+tex_spec tex_spec_depth32(int width, int height, int filter) {
   return (tex_spec){
     .width = width, .height = height, .min_filter = filter, .mag_filter = filter,
     .internal_format = GL_DEPTH_COMPONENT32, .format = GL_DEPTH_COMPONENT, .pixels = NULL, .multisample = false
@@ -307,6 +307,12 @@ tex tex_new(tex_spec spec) {
       gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
       gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
     }
+    
+    if (spec.shadow) {
+      gl_texture_parameteri(t.id, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+      gl_texture_parameteri(t.id, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
+    }
+
     gl_texture_parameteri(t.id, GL_TEXTURE_MIN_FILTER, spec.min_filter);
     gl_texture_parameteri(t.id, GL_TEXTURE_MAG_FILTER, spec.mag_filter);
     gl_texture_storage_2d(t.id, 1, spec.internal_format, spec.width,
@@ -602,16 +608,14 @@ mod mod_from_scene(struct aiScene const *scene, const char *path) {
 
 mod mod_new(const char *path) {
   struct aiScene const *scene =
-    aiImportFile(path,
-                 aiProcessPreset_TargetRealtime_Fast);
+    aiImportFile(path, aiProcessPreset_TargetRealtime_Fast);
 
   return mod_from_scene(scene, path);
 }
 
 mod mod_new_mem(const char *mem, size_t len, const char *path) {
   struct aiScene const *scene =
-    aiImportFileFromMemory(mem, len,
-                           aiProcessPreset_TargetRealtime_Fast, "obj");
+    aiImportFileFromMemory(mem, len, aiProcessPreset_TargetRealtime_Fast, "obj");
 
   return mod_from_scene(scene, path);
 }
@@ -623,6 +627,8 @@ void mod_draw(mod *m, draw_src s, cam *c, m4f t) {
 
     vao_bind(&m->meshes[i].vao);
     gl_draw_elements(GL_TRIANGLES, m->meshes[i].n_inds, GL_UNSIGNED_INT, 0);
+
+    the_app.n_tris += m->meshes[i].n_inds / 3;
   }
 
   gl_disable(GL_CULL_FACE);
@@ -659,6 +665,34 @@ shdr *mod_get_sh(draw_src s, cam *c, mtl m, m4f t) {
   shdr_bind(cur);
 
   return cur;
+}
+
+void cam_make_frustum(cam *c) {
+  frustum *f = &c->frustum_shade;
+  float half_v = cam_far * tanf(c->zoom * .5f);
+  float half_h = half_v * c->aspect;
+  v3f front = v3_mul(c->front, cam_far + 4.f);
+  v3f eye = v3_sub(cam_get_eye(c), v3_mul(c->front, 4.f));
+
+  f->near = plane_new(v3_add(eye, v3_mul(c->front, cam_near)), c->front);
+  f->far = plane_new(v3_add(eye, front), v3_neg(c->front));
+  f->right = plane_new(eye, v3_cross(v3_sub(front, v3_mul(c->right, half_h)), c->up));
+  f->right = plane_new(eye, v3_cross(c->up, v3_add(front, v3_mul(c->right, half_h))));
+  f->top = plane_new(eye, v3_cross(c->right, v3_sub(front, v3_mul(c->up, half_v))));
+  f->bottom = plane_new(eye, v3_cross(v3_add(front, v3_mul(c->up, half_v)), c->right));
+
+  f = &c->frustum_cam;
+  half_v = cam_far * tanf(c->zoom * .5f);
+  half_h = half_v * c->aspect;
+  front = v3_mul(c->front, cam_far);
+  eye = cam_get_eye(c);
+
+  f->near = plane_new(v3_add(eye, v3_mul(c->front, cam_near)), c->front);
+  f->far = plane_new(v3_add(eye, front), v3_neg(c->front));
+  f->right = plane_new(eye, v3_cross(v3_sub(front, v3_mul(c->right, half_h)), c->up));
+  f->right = plane_new(eye, v3_cross(c->up, v3_add(front, v3_mul(c->right, half_h))));
+  f->top = plane_new(eye, v3_cross(c->right, v3_sub(front, v3_mul(c->up, half_v))));
+  f->bottom = plane_new(eye, v3_cross(v3_add(front, v3_mul(c->up, half_v)), c->right));
 }
 
 void cam_rot(cam *c) {
@@ -704,6 +738,8 @@ void cam_rot(cam *c) {
                   sqrtf(2.f) * 0.5f * chunk_size * world_draw_dist *
                   overshoot_dist);
   c->cvp = m4_mul(look, proj);
+
+  cam_make_frustum(c);
 }
 
 int *quad_indices(int w, int h) {
@@ -780,6 +816,8 @@ void imod_draw(draw_src s, cam *c) {
       vao_bind(&m->meshes[i].vao);
       gl_draw_elements_instanced(GL_TRIANGLES, m->meshes[i].n_inds,
                                  GL_UNSIGNED_INT, 0, count);
+
+      the_app.n_tris += m->meshes[i].n_inds / 3 * count;
     }
 
     arr_clear(m->model);
@@ -831,34 +869,8 @@ void crt_up(shdr *s, crt args) {
   shdr_1f(s, "u_lores", args.lores);
 }
 
-int cam_test_box(cam *c, box3 b) {
-  v4f corners[8] = {
-    {b.min.x, b.min.y, b.min.z, 1.0f}, // x y z
-    {b.max.x, b.min.y, b.min.z, 1.0f}, // X y z
-    {b.min.x, b.max.y, b.min.z, 1.0f}, // x Y z
-    {b.max.x, b.max.y, b.min.z, 1.0f}, // X Y z
-
-    {b.min.x, b.min.y, b.max.z, 1.0f}, // x y Z
-    {b.max.x, b.min.y, b.max.z, 1.0f}, // X y Z
-    {b.min.x, b.max.y, b.max.z, 1.0f}, // x Y Z
-    {b.max.x, b.max.y, b.max.z, 1.0f}, // X Y Z
-  };
-
-  int inside = 0;
-
-  for (size_t corner_idx = 0; corner_idx < 8 && !inside; corner_idx++) {
-    // Transform vertex
-    v4f corner = v4_mul_m(corners[corner_idx], c->cvp);
-    // Check vertex against clip space bounds
-#define within(a, v, b) ((a) <= (v) && (v) <= (b))
-    inside = inside |
-             within(-corner.w, corner.x, corner.w) &
-             within(-corner.w, corner.y, corner.w) &
-             within(0.0f, corner.z, corner.w);
-#undef within
-  }
-
-  return inside;
+int cam_test_box(cam *c, box3 b, draw_src s) {
+  return box3_viewable(b, s == ds_cam ? &c->frustum_cam : &c->frustum_shade);
 }
 
 void dof_up(shdr *s, dof args) {
@@ -879,4 +891,22 @@ void dof_up(shdr *s, dof args) {
 
 v3f cam_get_eye(cam *c) {
   return v3_sub(c->pos, v3_mul(c->front, c->dist));
+}
+
+float plane_sdf(plane p, v3f pt) {
+  return v3_dot(p.norm, pt) - p.dist;
+}
+
+plane plane_new(v3f point, v3f norm) {
+  return (plane){
+    .norm = norm,
+    .dist = v3_dot(norm, point)
+  };
+}
+
+tex_spec tex_spec_shadow(int width, int height, int filter) {
+  return (tex_spec){
+    .width = width, .height = height, .min_filter = filter, .mag_filter = filter,
+    .internal_format = GL_DEPTH_COMPONENT32, .format = GL_DEPTH_COMPONENT, .pixels = NULL, .multisample = 0, .shadow = 1
+  };
 }

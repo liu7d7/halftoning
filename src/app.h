@@ -27,6 +27,10 @@ typedef struct app {
   win win;
   int player;
 
+  // debug info
+  int n_drawn, n_close;
+  size_t n_tris;
+
   // owning!
   GLFWwindow *glfw_win;
 } app;

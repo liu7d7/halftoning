@@ -21,6 +21,9 @@ inline static box3 box3_add(box3 a, v3f b) {
   return box3_new(v3_add(a.min, b), v3_add(a.max, b));
 }
 
+struct frustum;
+int box3_viewable(box3 b, struct frustum *f);
+
 [[gnu::always_inline]]
 inline static bool box3_overlaps(box3 a, box3 b) {
 #define overlaps(x_min0, x_min1, x_max0, x_max1) (x_max0 >= x_min1 && x_max1 >= x_min0)

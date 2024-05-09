@@ -208,15 +208,21 @@ void world_draw(world *w, draw_src s, cam *c, float d) {
   size_t n_inds = arr_len(w->ib_cache);
   gl_draw_elements(GL_TRIANGLES, n_inds, GL_UNSIGNED_INT, 0);
 
+  the_app.n_drawn = the_app.n_close = 0;
+
   for (obj *o = w->objs, *end = arr_end(w->objs); o != end; o++) {
     body *b = &o->body;
     if (v3_dist(b->pos, c->pos) > world_draw_dist * chunk_size) {
       continue;
     }
 
-    if (!cam_test_box(&the_app.cam, obj_get_box(o))) {
+    the_app.n_close++;
+
+    if (!cam_test_box(&the_app.cam, obj_get_box(o), s)) {
       continue;
     }
+
+    the_app.n_drawn++;
 
     obj_draw(o, s, c, d);
   }
