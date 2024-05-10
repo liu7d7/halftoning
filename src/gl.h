@@ -291,6 +291,7 @@ typedef struct mtl {
   float shine;
   int cull;
   float wind;
+  float transmission;
 } mtl;
 
 typedef struct mesh {

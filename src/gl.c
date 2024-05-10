@@ -581,10 +581,10 @@ lmap mod_load_mtl(char const *path) {
   char name[64];
   while (fgets(line, 256, f)) {
     mtl mat;
-    int r = sscanf(line, "%63s %u %u %f %f %f %f %d %f", name, &mat.dark,
+    int r = sscanf(line, "%63s %u %u %f %f %f %f %d %f %f", name, &mat.dark,
                    &mat.light, &mat.light_model.x, &mat.light_model.y,
-                   &mat.light_model.z, &mat.shine, &mat.cull, &mat.wind);
-    if (r < 9) {
+                   &mat.light_model.z, &mat.shine, &mat.cull, &mat.wind, &mat.transmission);
+    if (r < 10) {
       fprintf(stderr, "problem! %s in ", line);
       throw_c("mod_load_mtl: failed to parse mtl!");
     }
@@ -681,6 +681,7 @@ shdr *mod_get_sh(draw_src s, cam *c, mtl m, m4f t) {
   shdr_3f(cur, "u_light_model", m.light_model);
   shdr_3f(cur, "u_light", dreamy_haze[m.light]);
   shdr_3f(cur, "u_dark", dreamy_haze[m.dark]);
+  shdr_1f(cur, "u_trans", m.transmission);
   shdr_1f(cur, "u_shine", m.shine);
   shdr_1f(cur, "u_wind", m.wind);
   shdr_m4f(cur, "u_model", t);
@@ -694,8 +695,8 @@ void cam_make_frustum(cam *c) {
   frustum *f = &c->frustum_shade;
   float half_v = cam_far * tanf(c->zoom * .5f);
   float half_h = half_v * c->aspect;
-  v3f front = v3_mul(c->front, cam_far + 6.f);
-  v3f eye = v3_sub(cam_get_eye(c), v3_mul(c->front, 6.f));
+  v3f front = v3_mul(c->front, cam_far + 15.f);
+  v3f eye = v3_sub(cam_get_eye(c), v3_mul(c->front, 15.f));
 
   f->near = plane_new(v3_add(eye, v3_mul(c->front, cam_near)), c->front);
   f->far = plane_new(v3_add(eye, front), v3_neg(c->front));
@@ -880,6 +881,7 @@ shdr *imod_get_sh(draw_src s, cam *c, mtl m) {
   shdr_3f(cur, "u_light_model", m.light_model);
   shdr_3f(cur, "u_light", dreamy_haze[m.light]);
   shdr_3f(cur, "u_dark", dreamy_haze[m.dark]);
+  shdr_1f(cur, "u_trans", m.transmission);
   shdr_1f(cur, "u_shine", m.shine);
   shdr_1f(cur, "u_wind", m.wind);
   shdr_1f(cur, "u_time", app_now() / 1000.f);

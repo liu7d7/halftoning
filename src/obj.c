@@ -99,7 +99,7 @@ void obj_draw(obj *o, draw_src s, cam *c, float d) {
       tree *t = &o->tree;
       int lod = n_trees *
                 (box3_dist(t->box, cam_get_eye(c)) >
-                 20.f);
+                 36.f);
 
       imod_add(lazy.leaves[t->idx + lod],
                m4_mul(m4_mul(m4_rot_y(t->rot), m4_chg_axis(t->dir, 1)),

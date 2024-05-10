@@ -12,6 +12,7 @@ uniform vec3 u_light;
 uniform vec3 u_light_model;
 uniform float u_shine;
 uniform vec2 u_light_tex_size;
+uniform float u_trans;
 uniform sampler2D u_light_tex;
 
 const vec3 light_dir = vec3(-1, 2, -1);
@@ -43,21 +44,26 @@ float shadow_calc() {
   return shadow;
 }
 
-vec3 light_calc(vec3 N) {
+vec3 light_calc(vec3 N, float transmission) {
   vec3 L = normalize(light_dir);
   vec3 V = normalize(u_eye - v_pos.xyz);
   vec3 R = reflect(-L, N);
   float lambert = max(dot(N, L), 0.0);
   float specular = pow(max(dot(R, V), 0.0), u_shine);
-  float amt = clamp(u_light_model.x + (1. - shadow_calc()) * (lambert * u_light_model.y + specular * u_light_model.z), 0., 1.);
+  float amt = clamp(u_light_model.x + (1. - shadow_calc()) * (transmission * lambert * u_light_model.y + specular * u_light_model.z), 0., 1.);
   return mix(u_dark, u_light, smoothstep(0., 1., amt));
 }
 
 void main() {
   vec3 norm = v_norm;
+  float transmission = 1.;
   if (!gl_FrontFacing) {
-    norm = -norm;
+    if (u_trans > 0.0001) {
+      transmission = u_trans;
+    } else {
+      norm = -norm;
+    }
   }
 
-  f_color = vec4(light_calc(norm), 1.);
+  f_color = vec4(light_calc(norm, transmission), 1.);
 }

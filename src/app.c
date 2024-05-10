@@ -334,8 +334,8 @@ void app_run(app *a) {
     sprintf_s(text_buf, 128, "&b# objects&r: &b%zu", arr_len(a->world->objs));
     font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 3},
               0xffffffff, 1, 1.f);
-    sprintf_s(text_buf, 128, "&bculled&r: &b%f&r",
-              1.f - (float)a->n_drawn / (float)a->n_close);
+    sprintf_s(text_buf, 128, "&bculled&r: &b%.2f%%&r",
+              (1.f - (float)a->n_drawn / (float)a->n_close) * 100.f);
     font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 4},
               0xffffffff, 1, 1.f);
     sprintf_s(text_buf, 128, "&btris&r: &b%zu&r", a->n_tris);
