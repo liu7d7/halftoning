@@ -207,12 +207,13 @@ void world_draw(world *w, draw_src s, cam *c, float d) {
   vao_bind(&w->va);
   size_t n_inds = arr_len(w->ib_cache);
   gl_draw_elements(GL_TRIANGLES, n_inds, GL_UNSIGNED_INT, 0);
+  the_app.n_tris += n_inds / 3;
 
   the_app.n_drawn = the_app.n_close = 0;
 
   for (obj *o = w->objs, *end = arr_end(w->objs); o != end; o++) {
     body *b = &o->body;
-    if (v3_dist(b->pos, c->pos) > world_draw_dist * chunk_size) {
+    if (v3_dist(b->pos, c->pos) > (world_draw_dist + 1) * chunk_size) {
       continue;
     }
 

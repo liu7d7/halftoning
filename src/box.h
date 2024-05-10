@@ -17,6 +17,28 @@ inline static box3 box3_fit(box3 a, box3 b) {
 }
 
 [[gnu::always_inline]]
+inline static float box3_dist(box3 a, v3f b) {
+  v3f verts[8] = {
+    {a.min.x, a.min.y, a.min.z},
+    {a.max.x, a.min.y, a.min.z},
+    {a.min.x, a.max.y, a.min.z},
+    {a.max.x, a.max.y, a.min.z},
+    {a.min.x, a.min.y, a.max.z},
+    {a.max.x, a.min.y, a.max.z},
+    {a.min.x, a.max.y, a.max.z},
+    {a.max.x, a.max.y, a.max.z},
+  };
+
+  float min_dist_sq = 1e20f;
+  for (int i = 0; i < 8; i++) {
+    v3f delta = v3_sub(verts[i], b);
+    min_dist_sq = min(min_dist_sq, v3_dot(delta, delta));
+  }
+
+  return sqrtf(min_dist_sq);
+}
+
+[[gnu::always_inline]]
 inline static box3 box3_add(box3 a, v3f b) {
   return box3_new(v3_add(a.min, b), v3_add(a.max, b));
 }
