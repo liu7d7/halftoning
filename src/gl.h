@@ -5,6 +5,7 @@
 #include "typedefs.h"
 #include "err.h"
 #include "body.h"
+#include "lmap.h"
 #include <assimp/cimport.h>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -58,6 +59,8 @@ int cam_test_box(cam *c, box3 b, draw_src s);
 
 typedef struct shdr {
   uint id;
+
+  lmap locs;
 } shdr;
 
 typedef struct shdr_spec {

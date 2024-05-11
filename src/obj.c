@@ -3,7 +3,11 @@
 #include "app.h"
 #include "hana.h"
 
+#ifdef NDEBUG
 #define n_trees 4
+#else
+#define n_trees 1
+#endif
 
 static struct {
   mod *hana;
@@ -14,6 +18,7 @@ static struct {
 void lazy_init() {
   if (lazy.init) return;
 
+#ifdef NDEBUG
   static char const *trunk_paths[n_trees * 2] = {
     "res/bush2_trunk.obj",
     "res/bush3_trunk.obj",
@@ -42,6 +47,21 @@ void lazy_init() {
     "res/tree1.obj",
     "res/tree2.obj",
   };
+#else
+  static char const *trunk_paths[n_trees * 2] = {
+    "res/bush2_trunk.obj",
+    "res/bush2_trunk_dec.obj",
+  };
+
+  static char const *leaf_paths[n_trees * 2] = {
+    "res/bush2_leaves.obj",
+    "res/bush2_leaves_dec.obj",
+  };
+
+  static char const *mtl_paths[n_trees] = {
+    "res/bush2.obj",
+  };
+#endif
 
   for (int i = 0; i < n_trees; i++) {
     lazy.leaves[i] = imod_new(
@@ -54,7 +74,9 @@ void lazy_init() {
       mod_new_indirect_mtl(trunk_paths[i + n_trees], mtl_paths[i]));
   }
 
+#ifdef NDEBUG
   lazy.hana = objdup(mod_new_mem(hana_str, hana_str_len, "res/hana.obj"));
+#endif
 
   lazy.ball = imod_new(mod_new("res/ball.obj"));
   lazy.cyl = imod_new(mod_new("res/cylinder.obj"));
@@ -195,11 +217,13 @@ obj tree_new(v3f pos, v3f dir) {
   static int first_run = 1;
   if (first_run) {
     phys[0] = cap_new(v3_uy, 1.2f, 0.75f);
+#ifdef NDEBUG
     phys[1] = cap_new(v3_uy, 1.f, 1.65f);
     phys[2] = cap_new(v3_uy, 0.346f, 3.62f);
     off[2] = v3_mul(v3_uy, 3.62f);
     phys[3] = cap_new(v3_uy, 0.346f, 3.62f);
     off[3] = v3_mul(v3_uy, 3.62f);
+#endif
 
     first_run = 0;
   }

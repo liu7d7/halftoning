@@ -21,6 +21,8 @@ void *lmap_add(lmap *l, void *key, void *val);
 
 void *lmap_at(lmap *l, void *key);
 
+void *lmap_at_or(lmap *l, void *key, void *or);
+
 bool lmap_has(lmap *l, void *key);
 
 lmap

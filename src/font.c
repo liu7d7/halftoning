@@ -208,6 +208,8 @@ shdr *font_get_sh(struct app *a) {
   }
 
   shdr_m4f(sh, "u_proj", m4_ortho(0, a->dim.x, a->dim.y, 0, -5, 5));
+  shdr_1i(sh, "u_tex", 0);
+  shdr_bind(sh);
 
   return sh;
 }

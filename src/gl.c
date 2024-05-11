@@ -125,17 +125,41 @@ void prog_verify(uint gl_id) {
 }
 
 shdr shdr_new(uint n, shdr_spec *shdrs) {
-  uint gl_ids[n], gl_id = gl_create_program();
+  uint sh_ids[n], id = gl_create_program();
 
   for (int i = 0; i < n; i++) {
-    gl_ids[i] = shdr_compile(shdrs[i]);
-    gl_attach_shader(gl_id, gl_ids[i]);
+    sh_ids[i] = shdr_compile(shdrs[i]);
+    gl_attach_shader(id, sh_ids[i]);
   }
 
-  gl_link_program(gl_id);
-  prog_verify(gl_id);
+  gl_link_program(id);
+  prog_verify(id);
 
-  return (shdr){.id = gl_id};
+  int count;
+  gl_get_programiv(id, GL_ACTIVE_UNIFORMS, &count);
+  lmap locs = lmap_new(count, sizeof(char const *), sizeof(int), 0.75f, str_eq, str_hash);
+  for (int i = 0; i < count; i++) {
+    char name[128];
+    int len, size;
+    uint type;
+    gl_get_active_uniform(id, (GLuint)i, sizeof(name), &len, &size, &type, name);
+    int loc = gl_get_uniform_location(id, name);
+
+    int last_closing = 0;
+    for (; name[last_closing] && name[last_closing] != '['; last_closing++) {}
+
+    name[last_closing] = '\0';
+
+    char *heap_str = malloc(len + 1);
+    strcpy_s(heap_str, len + 1, name);
+    lmap_add(&locs, &heap_str, &loc);
+  }
+
+  for (int i = 0; i < n; i++) {
+    gl_delete_shader(sh_ids[i]);
+  }
+
+  return (shdr){.id = id, .locs = locs};
 }
 
 struct vao vao_new(buf *vbo, buf *ibo, uint n, attrib *attrs) {
@@ -213,40 +237,41 @@ void buf_bind(buf *b) {
   gl_bind_buffer(b->type, b->id);
 }
 
+static int shdr_invalid_loc = -1;
+
+int shdr_get_loc(shdr *s, char const *n) {
+  int *loc = lmap_at_or(&s->locs, &n, &shdr_invalid_loc);
+  return *loc;
+}
+
 void shdr_m4f(shdr *s, char const *n, m4f m) {
-  shdr_bind(s);
-  gl_uniform_matrix_4fv(gl_get_uniform_location(s->id, n), 1, GL_TRUE,
-                        &m.v[0][0]);
+  gl_program_uniform_matrix_4fv(s->id, shdr_get_loc(s, n), 1,
+                                GL_TRUE,
+                                &m.v[0][0]);
 }
 
 void shdr_1i(shdr *s, char const *n, int m) {
-  shdr_bind(s);
-  gl_uniform_1i(gl_get_uniform_location(s->id, n), m);
+  gl_program_uniform_1i(s->id, shdr_get_loc(s, n), m);
 }
 
 void shdr_1f(shdr *s, char const *n, float m) {
-  shdr_bind(s);
-  gl_uniform_1f(gl_get_uniform_location(s->id, n), m);
+  gl_program_uniform_1f(s->id, shdr_get_loc(s, n), m);
 }
 
 void shdr_2f(shdr *s, char const *n, v2f m) {
-  shdr_bind(s);
-  gl_uniform_2f(gl_get_uniform_location(s->id, n), m.x, m.y);
+  gl_program_uniform_2f(s->id, shdr_get_loc(s, n), m.x, m.y);
 }
 
 void shdr_3f(shdr *s, char const *n, v3f m) {
-  shdr_bind(s);
-  gl_uniform_3f(gl_get_uniform_location(s->id, n), m.x, m.y, m.z);
+  gl_program_uniform_3f(s->id, shdr_get_loc(s, n), m.x, m.y, m.z);
 }
 
 void shdr_3fv(shdr *s, char const *n, v3f *m, int amt) {
-  shdr_bind(s);
-  gl_uniform_3fv(gl_get_uniform_location(s->id, n), amt, (float *)m);
+  gl_program_uniform_3fv(s->id, shdr_get_loc(s, n), amt, (float *)m);
 }
 
 void shdr_4f(shdr *s, char const *n, v4f m) {
-  shdr_bind(s);
-  gl_uniform_4f(gl_get_uniform_location(s->id, n), m.x, m.y, m.z, m.w);
+  gl_program_uniform_4f(s->id, shdr_get_loc(s, n), m.x, m.y, m.z, m.w);
 }
 
 int attrib_get_size_in_bytes(attrib *attr) {
@@ -315,9 +340,10 @@ tex tex_new(tex_spec spec) {
       gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
       gl_texture_parameteri(t.id, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
     }
-    
+
     if (spec.shadow) {
-      gl_texture_parameteri(t.id, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+      gl_texture_parameteri(t.id, GL_TEXTURE_COMPARE_MODE,
+                            GL_COMPARE_REF_TO_TEXTURE);
       gl_texture_parameteri(t.id, GL_TEXTURE_COMPARE_FUNC, GL_LESS);
     }
 
@@ -583,7 +609,8 @@ lmap mod_load_mtl(char const *path) {
     mtl mat;
     int r = sscanf(line, "%63s %u %u %f %f %f %f %d %f %f", name, &mat.dark,
                    &mat.light, &mat.light_model.x, &mat.light_model.y,
-                   &mat.light_model.z, &mat.shine, &mat.cull, &mat.wind, &mat.transmission);
+                   &mat.light_model.z, &mat.shine, &mat.cull, &mat.wind,
+                   &mat.transmission);
     if (r < 10) {
       fprintf(stderr, "problem! %s in ", line);
       throw_c("mod_load_mtl: failed to parse mtl!");
@@ -638,7 +665,8 @@ mod mod_new_indirect_mtl(const char *path, const char *mtl) {
 
 mod mod_new_mem(const char *mem, size_t len, const char *path) {
   struct aiScene const *scene =
-    aiImportFileFromMemory(mem, len, aiProcessPreset_TargetRealtime_Fast, "obj");
+    aiImportFileFromMemory(mem, len, aiProcessPreset_TargetRealtime_Fast,
+                           "obj");
 
   return mod_from_scene(scene, path);
 }
@@ -678,14 +706,14 @@ shdr *mod_get_sh(draw_src s, cam *c, mtl m, m4f t) {
 
   shdr_m4f(cur, "u_vp", c->vp);
   shdr_3f(cur, "u_eye", cam_get_eye(c));
+  shdr_1f(cur, "u_time", app_now() / 1000.f);
+  shdr_m4f(cur, "u_model", t);
   shdr_3f(cur, "u_light_model", m.light_model);
   shdr_3f(cur, "u_light", dreamy_haze[m.light]);
   shdr_3f(cur, "u_dark", dreamy_haze[m.dark]);
   shdr_1f(cur, "u_trans", m.transmission);
   shdr_1f(cur, "u_shine", m.shine);
   shdr_1f(cur, "u_wind", m.wind);
-  shdr_m4f(cur, "u_model", t);
-  shdr_1f(cur, "u_time", app_now() / 1000.f);
   shdr_bind(cur);
 
   return cur;
@@ -701,11 +729,15 @@ void cam_make_frustum(cam *c) {
   f->near = plane_new(v3_add(eye, v3_mul(c->front, cam_near)), c->front);
   f->far = plane_new(v3_add(eye, front), v3_neg(c->front));
 
-  f->right = plane_new(eye, v3_cross(v3_sub(front, v3_mul(c->right, half_h)), c->up));
-  f->left = plane_new(eye, v3_cross(c->up, v3_add(front, v3_mul(c->right, half_h))));
+  f->right = plane_new(eye, v3_cross(v3_sub(front, v3_mul(c->right, half_h)),
+                                     c->up));
+  f->left = plane_new(eye,
+                      v3_cross(c->up, v3_add(front, v3_mul(c->right, half_h))));
 
-  f->top = plane_new(eye, v3_cross(c->right, v3_sub(front, v3_mul(c->up, half_v))));
-  f->bottom = plane_new(eye, v3_cross(v3_add(front, v3_mul(c->up, half_v)), c->right));
+  f->top = plane_new(eye,
+                     v3_cross(c->right, v3_sub(front, v3_mul(c->up, half_v))));
+  f->bottom = plane_new(eye, v3_cross(v3_add(front, v3_mul(c->up, half_v)),
+                                      c->right));
 
   f = &c->frustum_cam;
   half_v = cam_far * tanf(c->zoom * .5f);
@@ -716,11 +748,15 @@ void cam_make_frustum(cam *c) {
   f->near = plane_new(v3_add(eye, v3_mul(c->front, cam_near)), c->front);
   f->far = plane_new(v3_add(eye, front), v3_neg(c->front));
 
-  f->right = plane_new(eye, v3_cross(v3_sub(front, v3_mul(c->right, half_h)), c->up));
-  f->left = plane_new(eye, v3_cross(c->up, v3_add(front, v3_mul(c->right, half_h))));
+  f->right = plane_new(eye, v3_cross(v3_sub(front, v3_mul(c->right, half_h)),
+                                     c->up));
+  f->left = plane_new(eye,
+                      v3_cross(c->up, v3_add(front, v3_mul(c->right, half_h))));
 
-  f->top = plane_new(eye, v3_cross(c->right, v3_sub(front, v3_mul(c->up, half_v))));
-  f->bottom = plane_new(eye, v3_cross(v3_add(front, v3_mul(c->up, half_v)), c->right));
+  f->top = plane_new(eye,
+                     v3_cross(c->right, v3_sub(front, v3_mul(c->up, half_v))));
+  f->bottom = plane_new(eye, v3_cross(v3_add(front, v3_mul(c->up, half_v)),
+                                      c->right));
 }
 
 void cam_rot(cam *c) {

@@ -24,12 +24,14 @@ world *world_new(obj player) {
 
   world_add_obj(w, &player);
 
+#ifdef NDEBUG
   for (int i = -world_draw_dist; i <= world_draw_dist; i++) {
     for (int j = -world_draw_dist; j <= world_draw_dist; j++) {
       chunk c = chunk_new(w, (v2i){i, j});
       lmap_add(&w->chunks, &(v2i){i, j}, &c);
     }
   }
+#endif
 
   for (int i = 0; i < world_sp_size; i++) {
     for (int j = 0; j < world_sp_size; j++) {

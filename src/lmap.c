@@ -68,7 +68,7 @@ lmap lmap_resize(lmap *l, size_t new_size) {
 }
 
 void *lmap_add(lmap *l, void *key, void *val) {
-  if (l->count > l->cap * l->load_factor) {
+  if (l->count + 1 > l->cap * l->load_factor) {
     *l = lmap_resize(l, l->cap * 2);
   }
 
@@ -93,6 +93,22 @@ void *lmap_at(lmap *l, void *key) {
   }
 
   if (idx_is_invalid(l->idx[entry_idx])) return NULL;
+
+  return l->vals + l->idx[entry_idx] * l->val_size;
+}
+
+void *lmap_at_or(lmap *l, void *key, void *or) {
+  uint32_t hash = l->hash(key);
+  uint32_t entry_idx = hash % l->cap;
+//  uint32_t i = 1;
+  while (!idx_is_invalid(l->idx[entry_idx]) &&
+         !l->eq(key, l->keys + l->idx[entry_idx] * l->key_size)) {
+//    entry_idx += i * i;
+//    i++;
+    entry_idx = (entry_idx + 1 == l->cap ? 0: entry_idx + 1);
+  }
+
+  if (idx_is_invalid(l->idx[entry_idx])) return or;
 
   return l->vals + l->idx[entry_idx] * l->val_size;
 }
