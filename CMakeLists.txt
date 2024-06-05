@@ -30,8 +30,8 @@ add_executable(wip main.c src/lib/glad/glad.c src/lib/glad/glad.h src/lib/glad/k
         src/body.h
         src/gui.c
         src/gui.h
-        src/font.c
-        src/font.h
+        src/text.c
+        src/text.h
         src/stbtt_impl.c
         src/box.c
         src/box.h
@@ -44,10 +44,13 @@ add_executable(wip main.c src/lib/glad/glad.c src/lib/glad/glad.h src/lib/glad/k
         src/chunk.c
         src/obj.h
         src/obj.c
-        src/hana.h
         src/avg.h
         src/avg.c
+        src/tracy/TracyClient.cpp
+        src/text.c
 )
+
+add_compile_definitions(TRACY_ENABLE=1)
 
 find_package(assimp CONFIG REQUIRED)
 #find_package(PThreads4W REQUIRED)

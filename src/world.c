@@ -7,18 +7,18 @@
 world *world_new(obj player) {
   buf vb = buf_new(GL_ARRAY_BUFFER), ib = buf_new(GL_ELEMENT_ARRAY_BUFFER);
 
-  auto w = objdup((world){
-    .chunks = lmap_new(16, sizeof(v2i), sizeof(chunk), 0.5f, iv2_peq, iv2_hash),
+  auto w = _new_((world){
+    .chunks = lmap_new(16, sizeof(iv2), sizeof(chunk), 0.5f, iv2_peq, iv2_hash),
     .objs = arr_new(obj, 4),
     .objs_tick = arr_new(obj, 4),
     .objs_to_add = arr_new(obj, 4),
     .draw_lock = PTHREAD_MUTEX_INITIALIZER,
     .vb = vb,
     .ib = ib,
-    .va = vao_new(&vb, &ib, 2, (attrib[]){attr_3f, attr_3f}),
+    .va = vao_new(&vb, &ib, 3, (attrib[]){attr_3f, attr_3f, attr_1i}),
     .vb_dirty = 0,
-    .last_chunk_pos = (v2i){INT_MAX, INT_MAX},
-    .vb_cache = arr_new(obj_vtx, 4),
+    .last_chunk_pos = (iv2){INT_MAX, INT_MAX},
+    .vb_cache = arr_new(ch_vtx, 4),
     .ib_cache = arr_new(int, 4),
   });
 
@@ -27,8 +27,8 @@ world *world_new(obj player) {
 #ifdef NDEBUG
   for (int i = -world_draw_dist; i <= world_draw_dist; i++) {
     for (int j = -world_draw_dist; j <= world_draw_dist; j++) {
-      chunk c = chunk_new(w, (v2i){i, j});
-      lmap_add(&w->chunks, &(v2i){i, j}, &c);
+      chunk c = chunk_new(w, (iv2){i, j});
+      lmap_add(&w->chunks, &(iv2){i, j}, &c);
     }
   }
 #endif
@@ -46,8 +46,8 @@ world *world_new(obj player) {
   return w;
 }
 
-v2i world_get_chunk_pos(v3f world_pos) {
-  return (v2i){(int)floorf(world_pos.x / (float)chunk_size),
+iv2 world_get_chunk_pos(v3 world_pos) {
+  return (iv2){(int)floorf(world_pos.x / (float)chunk_size),
                (int)floorf(world_pos.z / (float)chunk_size)};
 }
 
@@ -61,12 +61,12 @@ void world_tick(world *w, cam *c) {
   }
 
   // handle all chunks
-  v2i cam_pos = world_get_chunk_pos(c->pos);
+  iv2 cam_pos = world_get_chunk_pos(c->pos);
   for (int i = -world_draw_dist; i <= world_draw_dist; i++) {
     for (int j = -world_draw_dist; j <= world_draw_dist; j++) {
       if (sqrt(i * i + j * j) > world_draw_dist + 1) continue;
 
-      v2i chunk_pos = {cam_pos.x + i, cam_pos.y + j};
+      iv2 chunk_pos = {cam_pos.x + i, cam_pos.y + j};
 
       chunk *ch = lmap_at(&w->chunks, &chunk_pos);
       if (!ch) continue;
@@ -83,9 +83,9 @@ void world_tick(world *w, cam *c) {
     b->prev_pos = b->pos;
     b->on_ground = 0;
     box3 bounds = body_get_box(b);
-    v2i chunk_min = world_get_chunk_pos(bounds.min),
+    iv2 chunk_min = world_get_chunk_pos(bounds.min),
       chunk_max = world_get_chunk_pos(bounds.max);
-    v2i min = iv2_sub(chunk_min, cam_pos),
+    iv2 min = iv2_sub(chunk_min, cam_pos),
       max = iv2_sub(chunk_max, cam_pos);
 
     for (int i = min.x; i <= max.x; i++) {
@@ -132,7 +132,7 @@ void world_tick(world *w, cam *c) {
   }
 }
 
-void world_cache(world *w, v2i cam_to_chunk) {
+void world_cache(world *w, iv2 cam_to_chunk) {
 #define n_inds (chunk_qty * chunk_qty* 6)
   static int qinds[n_inds], first_run = 1;
   if (first_run) {
@@ -153,7 +153,7 @@ void world_cache(world *w, v2i cam_to_chunk) {
         if (dist > world_draw_dist + 1) continue;
         nc++;
 
-        v2i chunk_pos = {cam_to_chunk.x + i, cam_to_chunk.y + j};
+        iv2 chunk_pos = {cam_to_chunk.x + i, cam_to_chunk.y + j};
 
         chunk *ch = lmap_at(&w->chunks, &chunk_pos);
 
@@ -163,7 +163,7 @@ void world_cache(world *w, v2i cam_to_chunk) {
         }
 
         arr_add_arr(&w->vb_cache, ch->data, chunk_len * chunk_len,
-                    sizeof(obj_vtx));
+                    sizeof(ch_vtx));
       }
     }
 
@@ -186,16 +186,10 @@ void world_cache(world *w, v2i cam_to_chunk) {
 }
 
 void world_draw(world *w, draw_src s, cam *c, float d) {
-  static mtl chunk_mtl = {
-    .light = 6,
-    .dark = 0,
-    .light_model = {0, 0.8f, 0}
-  };
-
-  mod_get_sh(s, c, chunk_mtl, m4_ident);
+  ch_get_sh(s, c);
 
   if (w->vb_dirty) {
-    buf_data_n(&w->vb, GL_DYNAMIC_DRAW, sizeof(obj_vtx), arr_len(w->vb_cache),
+    buf_data_n(&w->vb, GL_DYNAMIC_DRAW, sizeof(ch_vtx), arr_len(w->vb_cache),
                w->vb_cache);
     w->vb_dirty = 0;
   }
@@ -231,9 +225,15 @@ void world_draw(world *w, draw_src s, cam *c, float d) {
   }
 }
 
+int world_raycast(world *w, v3 o, v3 d, float l) {
+  for (obj *e = w->objs, *end = arr_end(e); e != end; e++) {
+    
+  }
+}
+
 void world_add_obj(world *w, obj *o) {
   o->body.prev_pos = o->body.pos;
   o->world = w;
-  o->id = arr_len(w->objs_tick);
+  o->id = w->id++;
   arr_add(&w->objs_to_add, o);
 }

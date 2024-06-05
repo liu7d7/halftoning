@@ -7,23 +7,23 @@
 #include "err.h"
 #include "gl.h"
 #include "world.h"
-#include "font.h"
+#include "text.h"
 #include "gui.h"
 #include "avg.h"
 
 typedef struct app {
-  v2f dim;
-  v2i lo_dim;
-  v2f mouse;
+  v2 dim;
+  iv2 lo_dim;
+  v2 mouse;
   vao post;
-  shdr dither, blit, crt, dilate;
+  shdr dither, blit, crt, outline;
   cam cam, shade_cam;
-  fbo low_res, low_res_2, main, shade, dof;
+  fbo low_res, low_res_2, main, shade;
   world *world;
   bool is_mouse_captured, is_rendering_halftone;
   float dt;
   avg_num mspt, mspf, mspd;
-  font font;
+  text text;
   win win;
   int player;
 
@@ -36,6 +36,7 @@ typedef struct app {
 } app;
 
 extern app the_app;
+extern app *a_;
 
 app app_new(int width, int height, char const *name);
 
@@ -57,7 +58,7 @@ key_callback(GLFWwindow *win, int keycode, int scancode, int action, int mods);
 void mouse_button_callback(GLFWwindow *win, int button, int action, int mods);
 
 void
-gl_error_callback(uint source, uint type, uint id, uint severity, int length,
+gl_error_callback(u32 source, u32 type, u32 id, u32 severity, int length,
                   char const *message, void const *user_param);
 
 float app_now();

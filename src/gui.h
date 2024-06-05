@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include "typedefs.h"
 #include "box.h"
+#include "avg.h"
 
 typedef enum widget_type {
   wt_info,
@@ -52,29 +53,29 @@ typedef union widget {
 
 struct app;
 
-void widget_draw(widget *w, struct app *a);
+void widget_draw(widget *w);
 
-void widget_click(widget *w, v2f pos);
+void widget_click(widget *w, v2 pos);
 
 void widget_key(widget *w, char c);
 
 typedef struct win {
   char const *title;
   widget *widgets;
-  v2f drag, rsz_drag, pos, dim;
+  v2 drag, rsz_drag, pos, dim;
   box2 bar, rsz;
 } win;
 
-void win_draw(win *w, struct app *a);
+void win_draw(win *w);
 
-int win_click(win *w, v2f pos);
+int win_click(win *w, v2 pos);
 
-win win_new(const char *title, widget *widgets, v2f pos, v2f dim);
+win win_new(const char *title, widget *widgets, v2 pos, v2 dim);
 
 void win_key(win *w, char c);
 
-void draw_circle(struct app *a, v2f pos, float rad, v4f color);
+void draw_circle(v2 pos, float rad, v4 color);
 
-void draw_rect(struct app *a, v2f tl, v2f br, v4f color);
+void draw_rect(v2 tl, v2 br, v4 color);
 
-void draw_line_graph(struct app *a, v2f points, v4f color);
+void draw_line_graph(v2 *points, v4 color);

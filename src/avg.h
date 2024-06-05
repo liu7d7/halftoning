@@ -8,7 +8,7 @@ typedef struct avg_num {
   int size;
   int cur_size;
   float sum;
-  float instant;
+  float max;
 } avg_num;
 
 avg_num avg_num_new(int size);

@@ -16,7 +16,7 @@
 #include "err.h"
 #include "hash.h"
 
-typedef uint32_t uint;
+typedef uint32_t u32;
 typedef uint8_t u8;
 #ifndef __GNUC__
 typedef int64_t ssize_t;
@@ -32,7 +32,7 @@ typedef int64_t ssize_t;
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
-#define objdup(...) \
+#define _new_(...) \
   ({ __typeof__ (__VA_ARGS__) _a = (__VA_ARGS__); \
      (__typeof__ (__VA_ARGS__) *)memcpy(malloc(sizeof(_a)), &_a, sizeof(_a));\
   })
@@ -88,170 +88,170 @@ static char *read_txt_file(char const *path) {
   return read_txt_file_len(path, NULL);
 }
 
-typedef union v2f {
+typedef union v2 {
   struct {
     float x, y;
   };
 
   float v[2];
-} v2f;
+} v2;
 
-static const v2f v2_ux = (v2f){.x = 1};
-static const v2f v2_uy = (v2f){.y = 1};
-static const v2f v2_zero = (v2f){0};
-static const v2f v2_one = (v2f){1, 1};
+static const v2 v2_ux = (v2){.x = 1};
+static const v2 v2_uy = (v2){.y = 1};
+static const v2 v2_zero = (v2){0};
+static const v2 v2_one = (v2){1, 1};
 
 
-inline static v2f v2_max(v2f lhs, v2f rhs) {
-  return (v2f){max(lhs.x, rhs.x), max(lhs.y, rhs.y)};
+inline static v2 v2_max(v2 lhs, v2 rhs) {
+  return (v2){max(lhs.x, rhs.x), max(lhs.y, rhs.y)};
 }
 
 [[gnu::always_inline]]
 
-inline static v2f v2_min(v2f lhs, v2f rhs) {
-  return (v2f){min(lhs.x, rhs.x), min(lhs.y, rhs.y)};
+inline static v2 v2_min(v2 lhs, v2 rhs) {
+  return (v2){min(lhs.x, rhs.x), min(lhs.y, rhs.y)};
 }
 
 [[gnu::always_inline]]
 
-inline static v2f v2_add(v2f lhs, v2f rhs) {
-  return (v2f){lhs.x + rhs.x, lhs.y + rhs.y};
+inline static v2 v2_add(v2 lhs, v2 rhs) {
+  return (v2){lhs.x + rhs.x, lhs.y + rhs.y};
 }
 
 [[gnu::always_inline]]
 
-inline static v2f v2_sub(v2f lhs, v2f rhs) {
-  return (v2f){lhs.x - rhs.x, lhs.y - rhs.y};
+inline static v2 v2_sub(v2 lhs, v2 rhs) {
+  return (v2){lhs.x - rhs.x, lhs.y - rhs.y};
 }
 
 [[gnu::always_inline]]
 
-inline static v2f v2_mul(v2f lhs, float scalar) {
-  return (v2f){lhs.x * scalar, lhs.y * scalar};
+inline static v2 v2_mul(v2 lhs, float scalar) {
+  return (v2){lhs.x * scalar, lhs.y * scalar};
 }
 
 [[gnu::always_inline]]
 
-inline static v2f v2_div(v2f lhs, float scalar) {
-  return (v2f){lhs.x / scalar, lhs.y / scalar};
+inline static v2 v2_div(v2 lhs, float scalar) {
+  return (v2){lhs.x / scalar, lhs.y / scalar};
 }
 
 [[gnu::always_inline]]
 
-inline static float v2_dot(v2f lhs, v2f rhs) {
+inline static float v2_dot(v2 lhs, v2 rhs) {
   return lhs.x * rhs.x + lhs.y * rhs.y;
 }
 
 [[gnu::always_inline]]
 
-inline static float v2_len(v2f a) {
+inline static float v2_len(v2 a) {
   return sqrtf(v2_dot(a, a));
 }
 
 [[gnu::always_inline]]
 
-inline static float v2_dist(v2f lhs, v2f rhs) {
-  v2f delta = v2_sub(lhs, rhs);
+inline static float v2_dist(v2 lhs, v2 rhs) {
+  v2 delta = v2_sub(lhs, rhs);
   return v2_len(delta);
 }
 
 [[gnu::always_inline]]
 
-inline static v2f v2_norm(v2f v) {
+inline static v2 v2_norm(v2 v) {
   float len = v2_len(v);
-  return (v2f){.x = v.x / len, .y = v.y / len};
+  return (v2){.x = v.x / len, .y = v.y / len};
 }
 
-typedef union v2i {
+typedef union iv2 {
   struct {
     int x, y;
   };
 
   int v[2];
-} v2i;
+} iv2;
 
-static const v2i iv2_ux = (v2i){.x = 1};
-static const v2i iv2_uy = (v2i){.y = 1};
-static const v2i iv2_zero = (v2i){0};
+static const iv2 iv2_ux = (iv2){.x = 1};
+static const iv2 iv2_uy = (iv2){.y = 1};
+static const iv2 iv2_zero = (iv2){0};
 
 [[gnu::always_inline]]
 
-inline static v2i iv2_max(v2i lhs, v2i rhs) {
-  return (v2i){max(lhs.x, rhs.x), max(lhs.y, rhs.y)};
+inline static iv2 iv2_max(iv2 lhs, iv2 rhs) {
+  return (iv2){max(lhs.x, rhs.x), max(lhs.y, rhs.y)};
 }
 
 [[gnu::always_inline]]
 
-inline static v2i iv2_min(v2i lhs, v2i rhs) {
-  return (v2i){min(lhs.x, rhs.x), min(lhs.y, rhs.y)};
+inline static iv2 iv2_min(iv2 lhs, iv2 rhs) {
+  return (iv2){min(lhs.x, rhs.x), min(lhs.y, rhs.y)};
 }
 
 [[gnu::always_inline]]
 
-inline static v2i iv2_add(v2i lhs, v2i rhs) {
-  return (v2i){lhs.x + rhs.x, lhs.y + rhs.y};
+inline static iv2 iv2_add(iv2 lhs, iv2 rhs) {
+  return (iv2){lhs.x + rhs.x, lhs.y + rhs.y};
 }
 
 [[gnu::always_inline]]
 
-inline static bool iv2_eq(v2i lhs, v2i rhs) {
+inline static bool iv2_eq(iv2 lhs, iv2 rhs) {
   return lhs.x == rhs.x && lhs.y == rhs.y;
 }
 
 [[gnu::always_inline]]
 
-inline static v2i iv2_sub(v2i lhs, v2i rhs) {
-  return (v2i){lhs.x - rhs.x, lhs.y - rhs.y};
+inline static iv2 iv2_sub(iv2 lhs, iv2 rhs) {
+  return (iv2){lhs.x - rhs.x, lhs.y - rhs.y};
 }
 
 [[gnu::always_inline]]
 
-inline static v2i iv2_mul(v2i lhs, int scalar) {
-  return (v2i){lhs.x * scalar, lhs.y * scalar};
+inline static iv2 iv2_mul(iv2 lhs, int scalar) {
+  return (iv2){lhs.x * scalar, lhs.y * scalar};
 }
 
 [[gnu::always_inline]]
 
-inline static v2i iv2_div(v2i lhs, int scalar) {
-  return (v2i){lhs.x / scalar, lhs.y / scalar};
+inline static iv2 iv2_div(iv2 lhs, int scalar) {
+  return (iv2){lhs.x / scalar, lhs.y / scalar};
 }
 
 [[gnu::always_inline]]
 
-inline static int iv2_dot(v2i lhs, v2i rhs) {
+inline static int iv2_dot(iv2 lhs, iv2 rhs) {
   return lhs.x * rhs.x + lhs.y * rhs.y;
 }
 
 [[gnu::always_inline]]
 
-inline static float iv2_len(v2i a) {
+inline static float iv2_len(iv2 a) {
   return sqrtf((float)iv2_dot(a, a));
 }
 
 [[gnu::always_inline]]
 
-inline static float iv2_dist(v2i lhs, v2i rhs) {
-  v2i delta = iv2_sub(lhs, rhs);
+inline static float iv2_dist(iv2 lhs, iv2 rhs) {
+  iv2 delta = iv2_sub(lhs, rhs);
   return iv2_len(delta);
 }
 
-typedef union v3f {
+typedef union v3 {
   struct {
     float x, y, z;
   };
 
   float v[3];
-} v3f;
+} v3;
 
-static const v3f v3_ux = (v3f){.x = 1};
-static const v3f v3_uy = (v3f){.y = 1};
-static const v3f v3_uz = (v3f){.z = 1};
-static const v3f v3_zero = (v3f){0};
-static const v3f v3_one = (v3f){1, 1, 1};
+static const v3 v3_ux = (v3){.x = 1};
+static const v3 v3_uy = (v3){.y = 1};
+static const v3 v3_uz = (v3){.z = 1};
+static const v3 v3_zero = (v3){0};
+static const v3 v3_one = (v3){1, 1, 1};
 
 [[gnu::always_inline]]
 
-inline static void v3_inc(v3f *lhs, v3f rhs) {
+inline static void v3_inc(v3 *lhs, v3 rhs) {
   lhs->x += rhs.x;
   lhs->y += rhs.y;
   lhs->z += rhs.z;
@@ -259,163 +259,168 @@ inline static void v3_inc(v3f *lhs, v3f rhs) {
 
 [[gnu::always_inline]]
 
-inline static v3f v3_max(v3f lhs, v3f rhs) {
-  return (v3f){max(lhs.x, rhs.x), max(lhs.y, rhs.y), max(lhs.z, rhs.z)};
+inline static v3 v3_max(v3 lhs, v3 rhs) {
+  return (v3){max(lhs.x, rhs.x), max(lhs.y, rhs.y), max(lhs.z, rhs.z)};
 }
 
 [[gnu::always_inline]]
 
-inline static v3f v3_min(v3f lhs, v3f rhs) {
-  return (v3f){min(lhs.x, rhs.x), min(lhs.y, rhs.y), min(lhs.z, rhs.z)};
+inline static v3 v3_min(v3 lhs, v3 rhs) {
+  return (v3){min(lhs.x, rhs.x), min(lhs.y, rhs.y), min(lhs.z, rhs.z)};
 }
 
-inline static void v3_print(v3f v, FILE *out) {
+inline static void v3_print(v3 v, FILE *out) {
   fprintf(out, "<%f, %f, %f>", v.x, v.y, v.z);
 }
 
 [[gnu::always_inline]]
 
-inline static v3f v3_add(v3f lhs, v3f rhs) {
-  return (v3f){lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};
+inline static v3 v3_add(v3 lhs, v3 rhs) {
+  return (v3){lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};
 }
 
 [[gnu::always_inline]]
 
-inline static v3f v3_neg(v3f v) {
-  return (v3f){-v.x, -v.y, -v.z};
+inline static v3 v3_neg(v3 v) {
+  return (v3){-v.x, -v.y, -v.z};
 }
 
 [[gnu::always_inline]]
 
-inline static v3f v3_sub(v3f lhs, v3f rhs) {
-  return (v3f){lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z};
+inline static v3 v3_sub(v3 lhs, v3 rhs) {
+  return (v3){lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z};
 }
 
 [[gnu::always_inline]]
 
-inline static v3f v3_mul(v3f lhs, float scalar) {
-  return (v3f){lhs.x * scalar, lhs.y * scalar, lhs.z * scalar};
+inline static v3 v3_mul(v3 lhs, float scalar) {
+  return (v3){lhs.x * scalar, lhs.y * scalar, lhs.z * scalar};
 }
 
 [[gnu::always_inline]]
 
-inline static v3f v3_mul_v(v3f lhs, v3f rhs) {
-  return (v3f){lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z};
+inline static v3 v3_mul_v(v3 lhs, v3 rhs) {
+  return (v3){lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z};
 }
 
 [[gnu::always_inline]]
 
-inline static v3f v3_div(v3f lhs, float scalar) {
-  return (v3f){lhs.x / scalar, lhs.y / scalar, lhs.z / scalar};
+inline static v3 v3_div(v3 lhs, float scalar) {
+  return (v3){lhs.x / scalar, lhs.y / scalar, lhs.z / scalar};
 }
 
 [[gnu::always_inline]]
 
-inline static v3f v3_cross(v3f lhs, v3f rhs) {
+inline static v3 v3_cross(v3 lhs, v3 rhs) {
   // 23 31 12
-  return (v3f){lhs.y * rhs.z - lhs.z * rhs.y,
+  return (v3){lhs.y * rhs.z - lhs.z * rhs.y,
                lhs.z * rhs.x - lhs.x * rhs.z,
                lhs.x * rhs.y - lhs.y * rhs.x};
 }
 
 [[gnu::always_inline]]
 
-inline static float v3_dot(v3f lhs, v3f rhs) {
+inline static float v3_dot(v3 lhs, v3 rhs) {
   return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z;
 }
 
 [[gnu::always_inline]]
 
-inline static float v3_len(v3f v) {
+inline static float v3_len(v3 v) {
   return sqrtf(v3_dot(v, v));
 }
 
 [[gnu::always_inline]]
 
-inline static float v3_angle(v3f lhs, v3f rhs) {
+inline static float v3_angle(v3 lhs, v3 rhs) {
   return acosf(v3_dot(lhs, rhs) / v3_len(lhs) / v3_len(rhs));
 }
 
 [[gnu::always_inline]]
 
-inline static float v3_dist(v3f lhs, v3f rhs) {
-  v3f delta = v3_sub(lhs, rhs);
+inline static float v3_dist(v3 lhs, v3 rhs) {
+  v3 delta = v3_sub(lhs, rhs);
   return v3_len(delta);
 }
 
 [[gnu::always_inline]]
 
-inline static v3f v3_normed(v3f v) {
+inline static v3 v3_normed(v3 v) {
   float len = v3_len(v);
-  return (v3f){.x = v.x / len, .y = v.y / len, .z = v.z / len};
+  return (v3){.x = v.x / len, .y = v.y / len, .z = v.z / len};
 }
 
 [[gnu::always_inline]]
 
-inline static void v3_norm(v3f *v) {
+inline static void v3_norm(v3 *v) {
   *v = v3_normed(*v);
 }
 
 [[gnu::always_inline]]
 
-inline static v3f v3_lerp(v3f a, v3f b, float d) {
+inline static v3 v3_lerp(v3 a, v3 b, float d) {
   return v3_add(a, v3_mul(v3_sub(b, a), d));
 }
 
-typedef union v4f {
+typedef union v4 {
   struct {
     float x, y, z, w;
   };
 
+  struct {
+    float r, g, b, a;
+  };
+
   float v[4];
-} v4f;
+} v4;
 
-static const v4f v4_ux = (v4f){.x = 1};
-static const v4f v4_uy = (v4f){.y = 1};
-static const v4f v4_uz = (v4f){.z = 1};
-static const v4f v4_uw = (v4f){.w = 1};
-static const v4f v4_zero = (v4f){0};
+static const v4 v4_ux = (v4){.x = 1};
+static const v4 v4_uy = (v4){.y = 1};
+static const v4 v4_uz = (v4){.z = 1};
+static const v4 v4_uw = (v4){.w = 1};
+static const v4 v4_zero = (v4){0};
+static const v4 v4_one = (v4){1, 1, 1, 1};
 
 [[gnu::always_inline]]
 
-inline static v4f v4_add(v4f lhs, v4f rhs) {
-  return (v4f){lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w};
+inline static v4 v4_add(v4 lhs, v4 rhs) {
+  return (v4){lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w};
 }
 
 [[gnu::always_inline]]
 
-inline static v4f v4_sub(v4f lhs, v4f rhs) {
-  return (v4f){lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w};
+inline static v4 v4_sub(v4 lhs, v4 rhs) {
+  return (v4){lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w};
 }
 
 [[gnu::always_inline]]
 
-inline static v4f v4_mul(v4f lhs, float scalar) {
-  return (v4f){lhs.x * scalar, lhs.y * scalar, lhs.z * scalar, lhs.w * scalar};
+inline static v4 v4_mul(v4 lhs, float scalar) {
+  return (v4){lhs.x * scalar, lhs.y * scalar, lhs.z * scalar, lhs.w * scalar};
 }
 
 [[gnu::always_inline]]
 
-inline static v4f v4_div(v4f lhs, float scalar) {
-  return (v4f){lhs.x / scalar, lhs.y / scalar, lhs.z / scalar, lhs.w / scalar};
+inline static v4 v4_div(v4 lhs, float scalar) {
+  return (v4){lhs.x / scalar, lhs.y / scalar, lhs.z / scalar, lhs.w / scalar};
 }
 
 [[gnu::always_inline]]
 
-inline static float v4_dot(v4f lhs, v4f rhs) {
+inline static float v4_dot(v4 lhs, v4 rhs) {
   return lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w;
 }
 
 [[gnu::always_inline]]
 
-inline static float v4_len(v4f v) {
+inline static float v4_len(v4 v) {
   return sqrtf(v4_dot(v, v));
 }
 
 typedef union m4f {
   float e[16];
   float v[4][4];
-  v4f r[4];
+  v4 r[4];
   struct {
     float
       _00, _01, _02, _03,
@@ -429,8 +434,8 @@ static const m4f m4_ident = (m4f){.r = {v4_ux, v4_uy, v4_uz, v4_uw}};
 
 [[gnu::always_inline]]
 
-inline static v4f m4_col(m4f *m, int col) {
-  return (v4f){m->v[0][col], m->v[1][col], m->v[2][col], m->v[3][col]};
+inline static v4 m4_col(m4f *m, int col) {
+  return (v4){m->v[0][col], m->v[1][col], m->v[2][col], m->v[3][col]};
 }
 
 [[gnu::always_inline]]
@@ -448,13 +453,13 @@ inline static m4f m4_tpose(m4f *orig) {
 
 inline static m4f m4_trans(float x, float y, float z) {
   m4f out = m4_ident;
-  out.r[3] = (v4f){x, y, z, 1};
+  out.r[3] = (v4){x, y, z, 1};
   return out;
 }
 
 [[gnu::always_inline]]
-inline static v4f v4_mul_m(v4f v, m4f mat) {
-  return (v4f){
+inline static v4 v4_mul_m(v4 v, m4f mat) {
+  return (v4){
     v.x * mat._00 + v.y * mat._10 + v.z * mat._20 + mat._30,
     v.x * mat._01 + v.y * mat._11 + v.z * mat._21 + mat._31,
     v.x * mat._02 + v.y * mat._12 + v.z * mat._22 + mat._32,
@@ -463,7 +468,7 @@ inline static v4f v4_mul_m(v4f v, m4f mat) {
 
 [[gnu::always_inline]]
 
-inline static m4f m4_trans_v(v3f p) {
+inline static m4f m4_trans_v(v3 p) {
   return m4_trans(p.x, p.y, p.z);
 }
 
@@ -479,7 +484,7 @@ inline static m4f m4_scale(float x, float y, float z) {
 
 [[gnu::always_inline]]
 
-inline static m4f m4_scale_v(v3f scale) {
+inline static m4f m4_scale_v(v3 scale) {
   return m4_scale(scale.x, scale.y, scale.z);
 }
 
@@ -506,17 +511,17 @@ static m4f m4_mul(m4f lhs, m4f rhs) {
   return out;
 }
 
-static m4f m4_chg_axis(v3f axis, int ax_num) {
-  v3f t = v3_normed(axis);
+static m4f m4_chg_axis(v3 axis, int ax_num) {
+  v3 t = v3_normed(axis);
   int min = 0;
   if (fabsf(t.v[min]) > fabsf(t.v[1])) min = 1;
   if (fabsf(t.v[min]) > fabsf(t.v[2])) min = 2;
 
-  v3f m = {0};
+  v3 m = {0};
   m.v[min] = 1;
 
-  v3f f = v3_normed(v3_cross(t, m));
-  v3f s = v3_normed(v3_cross(t, f));
+  v3 f = v3_normed(v3_cross(t, m));
+  v3 s = v3_normed(v3_cross(t, f));
 
   switch (ax_num) {
     case 0:
@@ -550,10 +555,10 @@ static m4f m4_chg_axis(v3f axis, int ax_num) {
   }
 }
 
-static m4f m4_look(v3f pos, v3f dir, v3f up) {
-  v3f f = v3_normed(dir);
-  v3f s = v3_normed(v3_cross(f, up));
-  v3f u = v3_cross(s, f);
+static m4f m4_look(v3 pos, v3 dir, v3 up) {
+  v3 f = v3_normed(dir);
+  v3 s = v3_normed(v3_cross(f, up));
+  v3 u = v3_cross(s, f);
 
   m4f out = {0};
 
@@ -640,11 +645,17 @@ inline static float rad(float deg) {
 }
 
 static uint32_t iv2_hash(void *key) {
-  return hash_murmur3(key, sizeof(v2i));
+  return hash_murmur3(key, sizeof(iv2));
 }
 
 static bool iv2_peq(void *_lhs, void *_rhs) {
-  return memcmp(_lhs, _rhs, sizeof(v2i)) == 0;
+  return memcmp(_lhs, _rhs, sizeof(iv2)) == 0;
+}
+
+static int idx_wrap(int size, int index) {
+  if (index < 0) index += size;
+  index %= size;
+  return index;
 }
 
 static float rad_wrap(float x) {
@@ -672,6 +683,7 @@ inline float rndf(float min, float max) {
 
 [[gnu::always_inline]]
 inline int rndi(int min, int max) {
-  if (min == max) return min;
-  return min + rand() % (max - min);
+  int64_t mi = min, ma = max;
+  if (mi == ma) return (int)mi;
+  return (int)(mi + rand() % (ma - mi));
 }

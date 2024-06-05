@@ -12,20 +12,20 @@ typedef enum body_type {
 } body_type;
 
 typedef struct tri {
-  v3f pos[3];
-  v3f norm;
+  v3 pos[3];
+  v3 norm;
   box3 box;
 } tri;
 
-tri tri_new(v3f a, v3f b, v3f c, v3f norm);
+tri tri_new(v3 a, v3 b, v3 c, v3 norm);
 
 typedef struct cap {
   body_type type;
-  v3f norm;
+  v3 norm;
   float ext, rad;
 } cap;
 
-cap cap_new(v3f norm, float rad, float ext);
+cap cap_new(v3 norm, float rad, float ext);
 
 typedef struct ball {
   body_type type;
@@ -40,12 +40,12 @@ typedef struct tmesh {
   box3 box;
 } tmesh;
 
-struct obj_vtx;
+struct obj_vtx; struct ch_vtx;
 
 tmesh tmesh_new(tri *tris);
 tmesh tmesh_new_vi(struct obj_vtx *verts, int *inds);
-
-tmesh tmesh_add(tmesh *orig, v3f pos);
+tmesh tmesh_new_cvi(struct ch_vtx *verts, int *inds);
+tmesh tmesh_add(tmesh *orig, v3 pos);
 
 typedef struct body {
   union {
@@ -58,12 +58,12 @@ typedef struct body {
 
   float slip;
   bool on_ground;
-  v3f pos, prev_pos, vel;
+  v3 pos, prev_pos, vel;
 } body;
 
 typedef struct hit {
   bool is_hit;
-  v3f norm;
+  v3 norm;
   float push;
 } hit;
 
@@ -79,7 +79,7 @@ inline static bool body_is_dyn(body *o) {
 
 void body_response(body *o, hit h, float slip);
 
-v3f body_get_ipos(body *o, float d);
+v3 body_get_ipos(body *o, float d);
 
 hit body_hit(body *a, body *b);
 

@@ -3,8 +3,10 @@
 layout (location = 0) in vec3 v_pos;
 layout (location = 1) in vec3 v_norm;
 layout (location = 2) in vec3 v_light_space_pos;
+layout (location = 3) in flat int v_id;
 
 layout (location = 0) out vec4 f_color;
+layout (location = 1) out int f_id;
 
 uniform vec3 u_eye;
 uniform vec3 u_dark;
@@ -66,4 +68,5 @@ void main() {
   }
 
   f_color = vec4(light_calc(norm, transmission), 1.);
+  f_id = v_id;
 }

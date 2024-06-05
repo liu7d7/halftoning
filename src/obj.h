@@ -17,7 +17,7 @@ typedef struct hana {
 
 typedef struct tree {
   obj_type type;
-  v3f offset, dir;
+  v3 offset, dir;
   int idx;
   float rot;
   box3 box;
@@ -38,14 +38,16 @@ typedef struct obj {
 
 obj hana_new();
 
-obj test_new(v3f pos, v3f vel, float rad);
+obj test_new(v3 pos, v3 vel, float rad);
 
-obj tree_new(v3f pos, v3f dir);
+obj tree_new(v3 pos, v3 dir);
 
 void obj_draw(obj *o, draw_src s, cam *c, float d);
 
 void obj_tick(obj *o);
 
-v3f obj_get_ipos(obj *o, float d);
+v3 obj_get_ipos(obj *o, float d);
 
 box3 obj_get_box(obj *o);
+
+float obj_raycast(obj *e, v3 o, v3 d);

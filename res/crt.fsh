@@ -34,7 +34,13 @@ void main() {
     texture(u_tex0, (crtUV - .5) / CA_AMT + .5).b
   ) * edge.x * edge.y;
 
-  f_color.rgb *= (sin(uv525.y * 3.1415926 / 2.f) * 0.3 + 1.);
+  f_color.rgb *= (sin(uv525.y * 3.1415926 / 2.f) * 0.4 + 1.);
 
   f_color.a = 1;
+
+  uv *= 1. - uv.yx;
+  float vig = uv.x * uv.y * 15.;
+  vig = pow(vig, 1./3.);
+
+  f_color.rgb *= vig;
 }

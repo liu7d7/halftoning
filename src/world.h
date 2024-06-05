@@ -16,29 +16,30 @@
 #define world_sp_size (world_draw_dist * 2 + 1)
 
 typedef struct world {
-  // v2i -> chunk
+  // iv2 -> chunk
   lmap chunks;
   reg regions[world_sp_size][world_sp_size];
 
   obj *objs, *objs_tick, *objs_to_add;
   buf vb, ib;
   vao va;
-  obj_vtx *vb_cache;
+  ch_vtx *vb_cache;
   int *ib_cache;
   bool vb_dirty, ib_dirty;
-  v2i last_chunk_pos;
+  iv2 last_chunk_pos;
 
   pthread_mutex_t draw_lock;
+  int _Atomic id;
 } world;
 
 // requires an opengl context!
 world *world_new(obj player);
 
-v2i world_get_chunk_pos(v3f world_pos);
+iv2 world_get_chunk_pos(v3 world_pos);
 
 void world_tick(world *w, cam *c);
 
-void world_cache(world *w, v2i cam_to_chunk);
+void world_cache(world *w, iv2 cam_to_chunk);
 
 void world_draw(world *w, draw_src s, cam *c, float d);
 

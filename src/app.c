@@ -12,8 +12,9 @@
 
 float const low_res = 480.f;
 float const shade_aspect = 1.5f;
-v2i const shade_dim = (v2i){(int)(8192 * shade_aspect), 8192};
+iv2 const shade_dim = (iv2){(int)(8192 * shade_aspect), 8192};
 app the_app;
+app *a_;
 
 app app_new(int width, int height, const char *name) {
   if (!glfw_init()) {
@@ -49,8 +50,8 @@ app app_new(int width, int height, const char *name) {
 
   buf post_vbo = buf_new(GL_ARRAY_BUFFER);
 
-  buf_data_n(&post_vbo, GL_DYNAMIC_DRAW, sizeof(v2f), 6,
-             (v2f[]){
+  buf_data_n(&post_vbo, GL_DYNAMIC_DRAW, sizeof(v2), 6,
+             (v2[]){
                {0, 0},
                {1, 0},
                {1, 1},
@@ -59,7 +60,7 @@ app app_new(int width, int height, const char *name) {
                {0, 0},
              });
 
-  v2i lo_dim = (v2i){(int)(low_res * (float)width / (float)height),
+  iv2 lo_dim = (iv2){(int)(low_res * (float)width / (float)height),
                      (int)low_res};
 
   return (app){
@@ -68,22 +69,22 @@ app app_new(int width, int height, const char *name) {
     .lo_dim = lo_dim,
     .is_mouse_captured = true,
     .post = vao_new(&post_vbo, NULL, 1, (attrib[]){attr_2f}),
-    .cam = cam_new((v3f){0.f, 20.f, 0.f}, (v3f){0.f, 1.f, 0.f}, 225.f, -30.f,
+    .cam = cam_new((v3){0.f, 20.f, 0.f}, (v3){0.f, 1.f, 0.f}, 225.f, -30.f,
                    (float)width / (float)height),
-    .shade_cam = cam_new((v3f){0.f, 20.f, 0.f}, (v3f){0.f, 1.f, 0.f}, 45.f,
+    .shade_cam = cam_new((v3){0.f, 20.f, 0.f}, (v3){0.f, 1.f, 0.f}, 45.f,
                          -54.7356103172f, shade_aspect),
-    .main = fbo_new(2,
+    .main = fbo_new(3,
                     (fbo_spec[]){
-                      {GL_COLOR_ATTACHMENT0, tex_spec_rgba8(width, height,
+                      {GL_COLOR_ATTACHMENT0, tex_spec_rgba8(lo_dim.x * 2,
+                                                            lo_dim.y * 2,
                                                             GL_LINEAR)},
-                      {GL_DEPTH_ATTACHMENT,  tex_spec_depth32(width, height,
+                      {GL_COLOR_ATTACHMENT1, tex_spec_r32i(lo_dim.x * 2,
+                                                           lo_dim.y * 2,
+                                                           GL_NEAREST)},
+                      {GL_DEPTH_ATTACHMENT,  tex_spec_depth32(lo_dim.x * 2,
+                                                              lo_dim.y * 2,
                                                               GL_NEAREST)}
                     }),
-    .dof = fbo_new(1,
-                   (fbo_spec[]){
-                     {GL_COLOR_ATTACHMENT0, tex_spec_rgba8(width, height,
-                                                           GL_LINEAR)},
-                   }),
     .shade = fbo_new(1,
                      (fbo_spec[]){
                        {GL_DEPTH_ATTACHMENT,
@@ -110,22 +111,23 @@ app app_new(int width, int height, const char *name) {
                       {GL_VERTEX_SHADER,   "res/post.vsh"},
                       {GL_FRAGMENT_SHADER, "res/crt.fsh"}
                     }),
-    .dilate = shdr_new(2,
-                       (shdr_spec[]){
-                         {GL_VERTEX_SHADER,   "res/post.vsh"},
-                         {GL_FRAGMENT_SHADER, "res/dof_dilate.fsh"}
-                       }),
-    .mspf = avg_num_new(120), .mspt = avg_num_new(120), .mspd = avg_num_new(
+    .outline = shdr_new(2,
+                        (shdr_spec[]){
+                          {GL_VERTEX_SHADER, "res/post.vsh"},
+                          {GL_FRAGMENT_SHADER, "res/outline.fsh"},
+                        }),
+    .mspf = avg_num_new(120), .mspt = avg_num_new(
+      120), .mspd = avg_num_new(
       120),
     .world = world_new(hana_new()),
     .player = 0,
-    .font = font_new((u8 *[fw_n]){
+    .text = font_new((u8 *[fw_n]){
       [fw_reg] = read_bin_file("res/futura/futura-reg.ttf"),
       [fw_ita] = read_bin_file("res/futura/futura-ita.ttf"),
       [fw_bold] = read_bin_file("res/futura/futura-bold.ttf"),
       [fw_bold_ita] = read_bin_file("res/futura/futura-bold-ita.ttf"),
     }, 128, 44),
-    .win = win_new("hello world!", NULL, (v2f){100, 100}, (v2f){100, 400}),
+    .win = win_new("hello world!", NULL, (v2){100, 100}, (v2){100, 400}),
     .is_rendering_halftone = 1
   };
 }
@@ -208,6 +210,28 @@ void *tick_runner(void *ap) {
   return NULL;
 }
 
+void draw_graph(app *a, avg_num *v, v4 color, int bg) {
+  v2 *p = arr_new(v2, v->size);
+  const float h = 200;
+  const float w = 600;
+  const float pad = 20;
+  v2 c = {pad + w, a->dim.y - pad};
+  if (bg) {
+    draw_rect((v2){pad / 2., a->dim.y - pad - h},
+              (v2){w + pad, a->dim.y - pad / 2.}, (v4){0.f, 0.f, 0.f, 0.5f});
+  }
+
+  for (int i = 1; i < v->size; i++) {
+    float val = v->buf[idx_wrap(v->size, v->head - i)];
+    arr_add(&p, &(v2){c.x - (w) / (float)v->size * i,
+                      c.y - val / v->max * (h - 2 * pad)});
+  }
+
+  draw_line_graph(p, color);
+
+  arr_del(p);
+}
+
 void app_run(app *a) {
   app_setup_user_ptr(a);
   gl_depth_func(GL_LESS);
@@ -218,6 +242,7 @@ void app_run(app *a) {
 
   gl_debug_message_callback(gl_error_callback, NULL);
   gl_enable(GL_DEBUG_OUTPUT);
+  gl_enable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
   a->shade_cam.ortho_size = 225;
   a->shade_cam.dist = 15.f;
@@ -226,6 +251,9 @@ void app_run(app *a) {
 
   pthread_t thread;
   pthread_create(&thread, NULL, tick_runner, a);
+
+  fbo_draw_bufs(&a->main, 2,
+                (u32[]){GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1});
 
   while (!glfw_window_should_close(a->glfw_win)) {
     auto start = app_now();
@@ -239,7 +267,7 @@ void app_run(app *a) {
     fbo_bind(&a->shade);
     gl_clear(GL_DEPTH_BUFFER_BIT);
     a->shade_cam.pos = v3_add(obj_get_ipos(&a->world->objs[a->player], dt),
-                              (v3f){0, 0.75f, 0});
+                              (v3){0, 0.75f, 0});
     cam_rot(&a->shade_cam);
     gl_front_face(GL_CW);
     world_draw(a->world, ds_shade, &a->shade_cam, dt);
@@ -252,30 +280,47 @@ void app_run(app *a) {
       tex_bind(fbo_tex_at(&a->shade, GL_DEPTH_ATTACHMENT), 3);
       shdr_1i(sh, "u_light_tex", 3);
       shdr_2f(sh, "u_light_tex_size",
-              (v2f){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
+              (v2){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
 
       sh = imod_get_sh(ds_cam, &a->cam, (mtl){});
       shdr_m4f(sh, "u_light_vp", a->shade_cam.vp);
       tex_bind(fbo_tex_at(&a->shade, GL_DEPTH_ATTACHMENT), 3);
       shdr_1i(sh, "u_light_tex", 3);
       shdr_2f(sh, "u_light_tex_size",
-              (v2f){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
+              (v2){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
+
+      sh = ch_get_sh(ds_cam, &a->cam);
+      shdr_m4f(sh, "u_light_vp", a->shade_cam.vp);
+      tex_bind(fbo_tex_at(&a->shade, GL_DEPTH_ATTACHMENT), 3);
+      shdr_1i(sh, "u_light_tex", 3);
+      shdr_2f(sh, "u_light_tex_size",
+              (v2){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
     }
 
-    gl_viewport(0, 0, a->dim.x, a->dim.y);
+    gl_viewport(0, 0, a->lo_dim.x * 2, a->lo_dim.y * 2);
     fbo_bind(&a->main);
     gl_clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     a->cam.pos = v3_add(obj_get_ipos(&a->world->objs[a->player], dt),
-                        (v3f){0, 0.75f, 0});
+                        (v3){0, 0.75f, 0});
     cam_rot(&a->cam);
     world_draw(a->world, ds_cam, &a->cam, dt);
     imod_draw(ds_cam, &a->cam);
     pthread_mutex_unlock(&a->world->draw_lock);
 
+    // raycast to get id in player's reach
+
     gl_enable(GL_BLEND);
 
-    gl_blit_named_framebuffer(a->main.id, a->low_res.id, 0, 0, a->dim.x,
-                              a->dim.y, 0, 0,
+//    shdr_bind(&a->outline);
+//    shdr_1i(&a->outline, "u_id", id);
+//    tex_bind(fbo_tex_at(&a->main, GL_COLOR_ATTACHMENT1), 0);
+//    shdr_1i(&a->outline, "u_tex", 0);
+//
+//    vao_bind(&a->post);
+//    gl_draw_arrays(GL_TRIANGLES, 0, 6);
+
+    gl_blit_named_framebuffer(a->main.id, a->low_res.id, 0, 0, a->lo_dim.x * 2,
+                              a->lo_dim.y * 2, 0, 0,
                               a->lo_dim.x, a->lo_dim.y, GL_COLOR_BUFFER_BIT,
                               GL_LINEAR);
 
@@ -312,37 +357,45 @@ void app_run(app *a) {
 
     gl_enable(GL_BLEND);
 
-    draw_rect(a, (v2f){10, 10}, (v2f){640, 20 + a->font.size * 6 + 10},
-              (v4f){0.f, 0.f, 0.f, 0.5f});
+    draw_rect((v2){10, 10}, (v2){640, 20 + a->text.size * 6 + 10},
+              (v4){0.f, 0.f, 0.f, 0.5f});
     char text_buf[128];
     sprintf_s(text_buf, 128, "&bxyz&r: &b%.2f&r &b%.2f&r &b%.2f", a->cam.pos.x,
               a->cam.pos.y,
               a->cam.pos.z);
-    font_draw(&a->font, a, text_buf, (v2f){20, 20}, 0xffffffff, 1, 1.f);
+    font_draw(&a->text, text_buf, (v2){20, 20}, 0xffffffff, 1, 1.f);
     sprintf_s(text_buf, 128,
               "&bmsp&r(&bt&r/&bf&r/&bd&r): &b%.3f&r/&b%.3f/&b%.3f",
               avg_num_get(&a->mspt),
               avg_num_get(&a->mspf),
               avg_num_get(&a->mspd));
-    font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size}, 0xffffffff,
+    font_draw(&a->text, text_buf, (v2){20, 20 + a->text.size}, 0xffffffff,
               1, 1.f);
     sprintf_s(text_buf, 128, "&bworld size&r: &b%zu&r/&b%zu",
               a->world->chunks.count,
               a->world->chunks.cap);
-    font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 2},
+    font_draw(&a->text, text_buf, (v2){20, 20 + a->text.size * 2},
               0xffffffff, 1, 1.f);
     sprintf_s(text_buf, 128, "&b# objects&r: &b%zu", arr_len(a->world->objs));
-    font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 3},
+    font_draw(&a->text, text_buf, (v2){20, 20 + a->text.size * 3},
               0xffffffff, 1, 1.f);
     sprintf_s(text_buf, 128, "&bculled&r: &b%.2f%%&r",
               (1.f - (float)a->n_drawn / (float)a->n_close) * 100.f);
-    font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 4},
+    font_draw(&a->text, text_buf, (v2){20, 20 + a->text.size * 4},
               0xffffffff, 1, 1.f);
     sprintf_s(text_buf, 128, "&btris&r: &b%zu&r", a->n_tris);
-    font_draw(&a->font, a, text_buf, (v2f){20, 20 + a->font.size * 5},
+    font_draw(&a->text, text_buf, (v2){20, 20 + a->text.size * 5},
               0xffffffff, 1, 1.f);
 
+    draw_graph(a, &a->mspf, (v4){1.f, 1.f, 0.f, 1.f}, 1);
+    draw_graph(a, &a->mspd, (v4){1.f, 0.f, 1.f, 1.f}, 0);
+    draw_graph(a, &a->mspt, (v4){0.f, 1.f, 1.f, 1.f}, 0);
+
     avg_num_add(&a->mspd, (app_now() - start));
+
+    if (!a->is_mouse_captured) {
+      win_draw(&a->win);
+    }
 
     glfw_swap_buffers(a->glfw_win);
     avg_num_add(&a->mspf, (app_now() - start));
@@ -362,25 +415,23 @@ bool app_is_key_down(app *g, int key) {
 
 void framebuffer_size_callback(GLFWwindow *win, int width, int height) {
   app *k = glfw_get_window_user_pointer(win);
-  k->dim = (v2f){(float)width, (float)height};
-  k->lo_dim = (v2i){(int)(low_res * (float)width / (float)height),
+  k->dim = (v2){(float)width, (float)height};
+  k->lo_dim = (iv2){(int)(low_res * (float)width / (float)height),
                     (int)low_res};
   fbo_resize(&k->low_res, k->lo_dim.x, k->lo_dim.y, 1,
-             (uint[]){GL_COLOR_ATTACHMENT0});
+             (u32[]){GL_COLOR_ATTACHMENT0});
   fbo_resize(&k->low_res_2, k->lo_dim.x, k->lo_dim.y, 1,
-             (uint[]){GL_COLOR_ATTACHMENT0});
-  fbo_resize(&k->main, width, height, 1,
-             (uint[]){GL_COLOR_ATTACHMENT0});
-  fbo_resize(&k->main, width, height, 2,
-             (uint[]){GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT});
+             (u32[]){GL_COLOR_ATTACHMENT0});
+  fbo_resize(&k->main, k->lo_dim.x * 2, k->lo_dim.y * 2, 2,
+             (u32[]){GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT});
   k->cam.aspect = (float)width / (float)height;
   gl_viewport(0, 0, width, height);
 }
 
 void cursor_pos_callback(GLFWwindow *win, double xpos, double ypos) {
   app *k = glfw_get_window_user_pointer(win);
-  k->mouse = (v2f){(float)xpos, (float)ypos};
-  cam_tick(&k->cam, k);
+  k->mouse = (v2){(float)xpos, (float)ypos};
+  cam_tick(&k->cam);
 }
 
 void
@@ -418,7 +469,7 @@ mouse_button_callback(GLFWwindow *win, int keycode, int action, int mods) {
 }
 
 void
-gl_error_callback(uint source, uint type, uint id, uint severity, int length,
+gl_error_callback(u32 source, u32 type, u32 id, u32 severity, int length,
                   char const *message, void const *user_param) {
   printf("%s\n", message);
 }

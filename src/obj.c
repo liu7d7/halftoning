@@ -1,7 +1,6 @@
 #include "obj.h"
 #include "world.h"
 #include "app.h"
-#include "hana.h"
 
 #ifdef NDEBUG
 #define n_trees 4
@@ -20,46 +19,46 @@ void lazy_init() {
 
 #ifdef NDEBUG
   static char const *trunk_paths[n_trees * 2] = {
-    "res/bush2_trunk.obj",
-    "res/bush3_trunk.obj",
-    "res/tree1_trunk.obj",
-    "res/tree2_trunk.obj",
-    "res/bush2_trunk_dec.obj",
-    "res/bush3_trunk_dec.obj",
-    "res/tree1_trunk_dec.obj",
-    "res/tree2_trunk_dec.obj",
+    "res/bush2_trunk.glb",
+    "res/bush3_trunk.glb",
+    "res/tree1_trunk.glb",
+    "res/tree2_trunk.glb",
+    "res/bush2_trunk_dec.glb",
+    "res/bush3_trunk_dec.glb",
+    "res/tree1_trunk_dec.glb",
+    "res/tree2_trunk_dec.glb",
   };
 
   static char const *leaf_paths[n_trees * 2] = {
-    "res/bush2_leaves.obj",
-    "res/bush3_leaves.obj",
-    "res/tree1_leaves.obj",
-    "res/tree2_leaves.obj",
-    "res/bush2_leaves_dec.obj",
-    "res/bush3_leaves_dec.obj",
-    "res/tree1_leaves_dec.obj",
-    "res/tree2_leaves_dec.obj",
+    "res/bush2_leaves.glb",
+    "res/bush3_leaves.glb",
+    "res/tree1_leaves.glb",
+    "res/tree2_leaves.glb",
+    "res/bush2_leaves_dec.glb",
+    "res/bush3_leaves_dec.glb",
+    "res/tree1_leaves_dec.glb",
+    "res/tree2_leaves_dec.glb",
   };
 
   static char const *mtl_paths[n_trees] = {
-    "res/bush2.obj",
-    "res/bush3.obj",
-    "res/tree1.obj",
-    "res/tree2.obj",
+    "res/bush2.glb",
+    "res/bush3.glb",
+    "res/tree1.glb",
+    "res/tree2.glb",
   };
 #else
   static char const *trunk_paths[n_trees * 2] = {
-    "res/bush2_trunk.obj",
-    "res/bush2_trunk_dec.obj",
+    "res/bush2_trunk.glb",
+    "res/bush2_trunk_dec.glb",
   };
 
   static char const *leaf_paths[n_trees * 2] = {
-    "res/bush2_leaves.obj",
-    "res/bush2_leaves_dec.obj",
+    "res/bush2_leaves.glb",
+    "res/bush2_leaves_dec.glb",
   };
 
   static char const *mtl_paths[n_trees] = {
-    "res/bush2.obj",
+    "res/bush2.glb",
   };
 #endif
 
@@ -75,22 +74,22 @@ void lazy_init() {
   }
 
 #ifdef NDEBUG
-  lazy.hana = objdup(mod_new_mem(hana_str, hana_str_len, "res/hana.obj"));
+  lazy.hana = _new_(mod_new("res/hana.glb"));
 #endif
 
-  lazy.ball = imod_new(mod_new("res/ball.obj"));
-  lazy.cyl = imod_new(mod_new("res/cylinder.obj"));
+  lazy.ball = imod_new(mod_new("res/ball.glb"));
+  lazy.cyl = imod_new(mod_new("res/cylinder.glb"));
 
   lazy.init = 1;
 }
 
 void hana_draw(obj *o, draw_src s, cam *c, float d) {
   cap cap = o->body.cap;
-  v3f base = v3_sub(obj_get_ipos(o, d), v3_mul(cap.norm, cap.ext + cap.rad));
+  v3 base = v3_sub(obj_get_ipos(o, d), v3_mul(cap.norm, cap.ext + cap.rad));
   mod_draw(lazy.hana, s, c, m4_mul(m4_trans(0, 0, 0.215f),
                                    m4_mul(m4_rot_y(
                                             -rad(the_app.cam.yaw) + M_PIF / 2.f),
-                                          m4_trans_v(base))));
+                                          m4_trans_v(base))), o->id);
 }
 
 void obj_draw(obj *o, draw_src s, cam *c, float d) {
@@ -102,19 +101,19 @@ void obj_draw(obj *o, draw_src s, cam *c, float d) {
       hana_draw(o, s, c, d);
 #else
       float r = o->body.cap.rad, ext = o->body.cap.ext;
-      v3f norm = o->body.cap.norm;
-      imod_add(lazy.cyl, m4_mul(m4_scale(r, ext, r), m4_trans_v(obj_get_ipos(o, d))));
+      v3 norm = o->body.cap.norm;
+      imod_add(lazy.cyl, m4_mul(m4_scale(r, ext, r), m4_trans_v(obj_get_ipos(o, d))), o->id);
       imod_add(lazy.ball, m4_mul(m4_scale(r, r, r), m4_trans_v(
-        v3_add(obj_get_ipos(o, d), v3_mul(norm, ext)))));
+        v3_add(obj_get_ipos(o, d), v3_mul(norm, ext)))), o->id);
       imod_add(lazy.ball, m4_mul(m4_scale(r, r, r), m4_trans_v(
-        v3_add(obj_get_ipos(o, d), v3_neg(v3_mul(norm, ext))))));
+        v3_add(obj_get_ipos(o, d), v3_neg(v3_mul(norm, ext))))), o->id);
 #endif
       break;
     }
     case ot_test: {
       float r = o->body.ball.rad;
       imod_add(lazy.ball,
-               m4_mul(m4_scale(r, r, r), m4_trans_v(obj_get_ipos(o, d))));
+               m4_mul(m4_scale(r, r, r), m4_trans_v(obj_get_ipos(o, d))), o->id);
       break;
     }
     case ot_tree: {
@@ -125,11 +124,11 @@ void obj_draw(obj *o, draw_src s, cam *c, float d) {
 
       imod_add(lazy.leaves[t->idx + lod],
                m4_mul(m4_mul(m4_rot_y(t->rot), m4_chg_axis(t->dir, 1)),
-                      m4_trans_v(v3_sub(o->body.pos, t->offset))));
+                      m4_trans_v(v3_sub(o->body.pos, t->offset))), o->id);
 
       imod_add(lazy.trunks[t->idx + lod],
                m4_mul(m4_mul(m4_rot_y(t->rot), m4_chg_axis(t->dir, 1)),
-                      m4_trans_v(v3_sub(o->body.pos, t->offset))));
+                      m4_trans_v(v3_sub(o->body.pos, t->offset))), o->id);
       break;
     }
   }
@@ -146,13 +145,13 @@ void hana_tick(obj *o) {
   if (app_is_key_down(a, GLFW_KEY_S)) forwards--;
   if (app_is_key_down(a, GLFW_KEY_D)) sideways++;
 
-  v3f front_xz = a->cam.front;
+  v3 front_xz = a->cam.front;
   front_xz.y = 0.f;
   if (v3_len(front_xz) >= 0.0001) {
     v3_norm(&front_xz);
   }
 
-  v3f final = v3_add(v3_mul(front_xz, forwards),
+  v3 final = v3_add(v3_mul(front_xz, forwards),
                      v3_mul(a->cam.right, sideways));
   bool moving = v3_dot(final, final) > 0.0001;
   if (moving) v3_norm(&final);
@@ -162,7 +161,7 @@ void hana_tick(obj *o) {
   if (!b->on_ground) final = v3_mul(final, 0.05f);
 
   b->vel = v3_mul_v(v3_add(b->vel, final),
-                    b->on_ground ? v3_one : (v3f){0.975f, 1.f, 0.975f});
+                    b->on_ground ? v3_one : (v3){0.975f, 1.f, 0.975f});
 
   if (app_is_key_down(a, GLFW_KEY_T)) {
     cap c = o->body.cap;
@@ -193,11 +192,11 @@ obj hana_new() {
     .dynamic = 1};
 }
 
-v3f obj_get_ipos(obj *o, float d) {
+v3 obj_get_ipos(obj *o, float d) {
   return body_get_ipos(&o->body, d);
 }
 
-obj test_new(v3f pos, v3f vel, float rad) {
+obj test_new(v3 pos, v3 vel, float rad) {
   return (obj){
     .type = ot_test,
     .body = {
@@ -208,12 +207,12 @@ obj test_new(v3f pos, v3f vel, float rad) {
     .dynamic = 1};
 }
 
-obj tree_new(v3f pos, v3f dir) {
+obj tree_new(v3 pos, v3 dir) {
   lazy_init();
 
   static tmesh meshes[n_trees];
   static cap phys[n_trees];
-  static v3f off[n_trees];
+  static v3 off[n_trees];
   static int first_run = 1;
   if (first_run) {
     phys[0] = cap_new(v3_uy, 1.2f, 0.75f);
@@ -250,10 +249,18 @@ obj tree_new(v3f pos, v3f dir) {
 }
 
 box3 obj_get_box(obj *o) {
+#ifndef NDEBUG
+  lazy_init();
+#endif
   switch (o->type) {
     case ot_hana: {
       cap c = o->body.cap;
-      return box3_add(lazy.hana->bounds,
+      return box3_add(
+#ifdef NDEBUG
+        lazy.hana->bounds,
+#else
+        lazy.cyl->bounds,
+#endif
                       v3_sub(o->body.pos, v3_mul(c.norm, c.ext + c.rad)));
     }
     case ot_tree: {
@@ -263,4 +270,8 @@ box3 obj_get_box(obj *o) {
       return body_get_box(&o->body);
     }
   }
+}
+
+float obj_raycast(obj *e, v3 o, v3 d) {
+
 }

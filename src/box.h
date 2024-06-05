@@ -3,11 +3,11 @@
 #include "typedefs.h"
 
 typedef struct box3 {
-  v3f min, max;
+  v3 min, max;
 } box3;
 
 [[gnu::always_inline]]
-inline static box3 box3_new(v3f min, v3f max) {
+inline static box3 box3_new(v3 min, v3 max) {
   return (box3){.min = min, .max = max};
 }
 
@@ -17,8 +17,8 @@ inline static box3 box3_fit(box3 a, box3 b) {
 }
 
 [[gnu::always_inline]]
-inline static float box3_dist(box3 a, v3f b) {
-  v3f verts[8] = {
+inline static float box3_dist(box3 a, v3 b) {
+  v3 verts[8] = {
     {a.min.x, a.min.y, a.min.z},
     {a.max.x, a.min.y, a.min.z},
     {a.min.x, a.max.y, a.min.z},
@@ -31,7 +31,7 @@ inline static float box3_dist(box3 a, v3f b) {
 
   float min_dist_sq = 1e20f;
   for (int i = 0; i < 8; i++) {
-    v3f delta = v3_sub(verts[i], b);
+    v3 delta = v3_sub(verts[i], b);
     min_dist_sq = min(min_dist_sq, v3_dot(delta, delta));
   }
 
@@ -39,7 +39,7 @@ inline static float box3_dist(box3 a, v3f b) {
 }
 
 [[gnu::always_inline]]
-inline static box3 box3_add(box3 a, v3f b) {
+inline static box3 box3_add(box3 a, v3 b) {
   return box3_new(v3_add(a.min, b), v3_add(a.max, b));
 }
 
@@ -56,9 +56,9 @@ inline static bool box3_overlaps(box3 a, box3 b) {
 }
 
 typedef struct box2 {
-  v2f min, max;
+  v2 min, max;
 } box2;
 
-box2 box2_new(v2f min, v2f max);
+box2 box2_new(v2 min, v2 max);
 
-bool box2_contains(box2 a, v2f pos);
+bool box2_contains(box2 a, v2 pos);

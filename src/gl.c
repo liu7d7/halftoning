@@ -5,7 +5,7 @@
 #include "pal.h"
 
 cam
-cam_new(v3f pos, v3f world_up, float yaw, float pitch, float aspect) {
+cam_new(v3 pos, v3 world_up, float yaw, float pitch, float aspect) {
   const float default_zoom = 45.0f;
 
   cam c = {
@@ -22,9 +22,9 @@ cam_new(v3f pos, v3f world_up, float yaw, float pitch, float aspect) {
   return c;
 }
 
-void cam_tick(cam *c, app *a) {
-  if (c->has_last && a->is_mouse_captured) {
-    v2f delta = v2_sub(a->mouse, c->last_mouse_pos);
+void cam_tick(cam *c) {
+  if (c->has_last && a_->is_mouse_captured) {
+    v2 delta = v2_sub(a_->mouse, c->last_mouse_pos);
     c->target_yaw += delta.x;
     c->target_pitch -= delta.y;
 
@@ -32,9 +32,9 @@ void cam_tick(cam *c, app *a) {
     if (c->target_pitch < -89.9f) c->target_pitch = -89.9f;
   }
 
-  if (a->is_mouse_captured) {
+  if (a_->is_mouse_captured) {
     c->has_last = true;
-    c->last_mouse_pos = a->mouse;
+    c->last_mouse_pos = a_->mouse;
   }
 }
 
@@ -56,7 +56,7 @@ m4f cam_get_proj(cam *c) {
   }
 }
 
-void shdr_verify(uint gl_id) {
+void shdr_verify(u32 gl_id) {
   int is_ok;
   char info_log[1024];
   gl_get_shaderiv(gl_id, GL_COMPILE_STATUS, &is_ok);
@@ -66,7 +66,7 @@ void shdr_verify(uint gl_id) {
   }
 }
 
-uint shdr_compile(shdr_spec s) {
+u32 shdr_compile(shdr_spec s) {
   FILE *f = fopen(s.path, "r");
   if (!f) {
     throw_c("Failed to open file for shdr_component!");
@@ -102,7 +102,7 @@ uint shdr_compile(shdr_spec s) {
     strcat(src, block);
   }
 
-  uint gl_id = gl_create_shader(s.type);
+  u32 gl_id = gl_create_shader(s.type);
   gl_shader_source(gl_id, 1, (char const *[]){src},
                    (int[]){(int)strlen(src)});
   gl_compile_shader(gl_id);
@@ -114,7 +114,7 @@ uint shdr_compile(shdr_spec s) {
   return gl_id;
 }
 
-void prog_verify(uint gl_id) {
+void prog_verify(u32 gl_id) {
   int is_ok;
   char info_log[1024];
   gl_get_programiv(gl_id, GL_LINK_STATUS, &is_ok);
@@ -124,8 +124,8 @@ void prog_verify(uint gl_id) {
   }
 }
 
-shdr shdr_new(uint n, shdr_spec *shdrs) {
-  uint sh_ids[n], id = gl_create_program();
+shdr shdr_new(u32 n, shdr_spec *shdrs) {
+  u32 sh_ids[n], id = gl_create_program();
 
   for (int i = 0; i < n; i++) {
     sh_ids[i] = shdr_compile(shdrs[i]);
@@ -141,7 +141,7 @@ shdr shdr_new(uint n, shdr_spec *shdrs) {
   for (int i = 0; i < count; i++) {
     char name[128];
     int len, size;
-    uint type;
+    u32 type;
     gl_get_active_uniform(id, (GLuint)i, sizeof(name), &len, &size, &type, name);
     int loc = gl_get_uniform_location(id, name);
 
@@ -162,7 +162,7 @@ shdr shdr_new(uint n, shdr_spec *shdrs) {
   return (shdr){.id = id, .locs = locs};
 }
 
-struct vao vao_new(buf *vbo, buf *ibo, uint n, attrib *attrs) {
+struct vao vao_new(buf *vbo, buf *ibo, u32 n, attrib *attrs) {
   int stride = 0;
   for (int i = 0; i < n; i++) {
     attrib a = attrs[i];
@@ -196,7 +196,7 @@ struct vao vao_new(buf *vbo, buf *ibo, uint n, attrib *attrs) {
   return v;
 }
 
-buf buf_new(uint type) {
+buf buf_new(u32 type) {
   buf b = {.id = 0, .type = type};
   gl_create_buffers(1, &b.id);
 
@@ -212,12 +212,12 @@ void *buf_rw(buf *b, size_t size) {
   return gl_map_named_buffer(b->id, GL_READ_WRITE);
 }
 
-void buf_data_n(buf *b, uint usage, ssize_t elem_size, ssize_t n,
+void buf_data_n(buf *b, u32 usage, ssize_t elem_size, ssize_t n,
                 void *data) {
   buf_data(b, usage, n * elem_size, data);
 }
 
-void buf_data(buf *b, uint usage, ssize_t size_in_bytes, void *data) {
+void buf_data(buf *b, u32 usage, ssize_t size_in_bytes, void *data) {
   gl_named_buffer_data(b->id, size_in_bytes, data, usage);
 }
 
@@ -258,19 +258,19 @@ void shdr_1f(shdr *s, char const *n, float m) {
   gl_program_uniform_1f(s->id, shdr_get_loc(s, n), m);
 }
 
-void shdr_2f(shdr *s, char const *n, v2f m) {
+void shdr_2f(shdr *s, char const *n, v2 m) {
   gl_program_uniform_2f(s->id, shdr_get_loc(s, n), m.x, m.y);
 }
 
-void shdr_3f(shdr *s, char const *n, v3f m) {
+void shdr_3f(shdr *s, char const *n, v3 m) {
   gl_program_uniform_3f(s->id, shdr_get_loc(s, n), m.x, m.y, m.z);
 }
 
-void shdr_3fv(shdr *s, char const *n, v3f *m, int amt) {
+void shdr_3fv(shdr *s, char const *n, v3 *m, int amt) {
   gl_program_uniform_3fv(s->id, shdr_get_loc(s, n), amt, (float *)m);
 }
 
-void shdr_4f(shdr *s, char const *n, v4f m) {
+void shdr_4f(shdr *s, char const *n, v4 m) {
   gl_program_uniform_4f(s->id, shdr_get_loc(s, n), m.x, m.y, m.z, m.w);
 }
 
@@ -307,6 +307,13 @@ tex_spec tex_spec_r16(int width, int height, int filter) {
   return (tex_spec){
     .width = width, .height = height, .min_filter = filter, .mag_filter = filter,
     .internal_format = GL_R16F, .format = GL_RED, .pixels = NULL, .multisample = false
+  };
+}
+
+tex_spec tex_spec_r32i(int width, int height, int filter) {
+  return (tex_spec){
+    .width = width, .height = height, .min_filter = filter, .mag_filter = filter,
+    .internal_format = GL_R32I, .format = GL_RED, .pixels = NULL, .multisample = false
   };
 }
 
@@ -375,7 +382,7 @@ void tex_resize(tex *t, int width, int height) {
   *t = resized;
 }
 
-void tex_bind(tex *t, uint unit) {
+void tex_bind(tex *t, u32 unit) {
   if (unit >= 16) throw_c("Unit too high!");
   gl_active_texture(unit + GL_TEXTURE0);
   gl_bind_texture(GL_TEXTURE_2D, t->id);
@@ -389,7 +396,7 @@ void tex_del(tex *t) {
   }
 }
 
-fbo fbo_new(uint n, fbo_spec *spec) {
+fbo fbo_new(u32 n, fbo_spec *spec) {
   fbo f = {.id = 0, .bufs = malloc(
     n * sizeof(fbo_buf)), .n_bufs = n};
   gl_create_framebuffers(1, &f.id);
@@ -407,19 +414,19 @@ void fbo_bind(fbo *f) {
   gl_bind_framebuffer(GL_FRAMEBUFFER, f->id);
 }
 
-void fbo_draw_bufs(fbo *f, int n, uint *bufs) {
+void fbo_draw_bufs(fbo *f, int n, u32 *bufs) {
   gl_named_framebuffer_draw_buffers(f->id, n, bufs);
 }
 
-void fbo_read_buf(fbo *f, uint buf) {
+void fbo_read_buf(fbo *f, u32 buf) {
   gl_named_framebuffer_read_buffer(f->id, buf);
 }
 
-bool is_gl_buf_color_attachment(uint it) {
+bool is_gl_buf_color_attachment(u32 it) {
   return it >= GL_COLOR_ATTACHMENT0 && it <= GL_COLOR_ATTACHMENT31;
 }
 
-tex *fbo_tex_at(fbo *f, uint buf) {
+tex *fbo_tex_at(fbo *f, u32 buf) {
   for (int i = 0; i < f->n_bufs; i++) {
     if (f->bufs[i].id == buf) {
       return &f->bufs[i].tex;
@@ -430,8 +437,8 @@ tex *fbo_tex_at(fbo *f, uint buf) {
 }
 
 void
-fbo_blit(fbo *src, fbo *dst, uint src_a, uint dst_a,
-         uint filter) {
+fbo_blit(fbo *src, fbo *dst, u32 src_a, u32 dst_a,
+         u32 filter) {
   // @formatter:off
   int src_mask =
     is_gl_buf_color_attachment(src_a) ?
@@ -455,7 +462,7 @@ fbo_blit(fbo *src, fbo *dst, uint src_a, uint dst_a,
 
   if (src_mask == GL_COLOR_BUFFER_BIT) {
     fbo_read_buf(src, src_a);
-    fbo_draw_bufs(dst, 1, (uint[]){dst_a});
+    fbo_draw_bufs(dst, 1, (u32[]){dst_a});
   }
 
   gl_blit_named_framebuffer(
@@ -465,7 +472,7 @@ fbo_blit(fbo *src, fbo *dst, uint src_a, uint dst_a,
     src_mask, filter);
 }
 
-void fbo_resize(fbo *f, int width, int height, uint n, uint *bufs) {
+void fbo_resize(fbo *f, int width, int height, u32 n, u32 *bufs) {
   for (int i = 0; i < n; i++) {
     tex *t = fbo_tex_at(f, bufs[i]);
     tex_resize(t, width, height);
@@ -516,14 +523,31 @@ mod_load_mesh(mod *m, lmap *mats, box3 *b, struct aiMesh *mesh,
   size_t len = strlen(mesh->mName.data);
 
   char *name = mesh->mName.data;
-  mtl *mat = lmap_at(mats, &name);
+  char name_thing[1024];
+  strcpy(name_thing, name);
+  char *dot_ptr = strchr(name, '.');
+  if (dot_ptr) {
+    size_t dot = dot_ptr - name;
+    name_thing[dot] = '\0';
+  }
+
+  char *name_thing_ptr = name_thing;
+  mtl *mat = lmap_at(mats, &name_thing_ptr);
   if (!mat) {
     fprintf(stderr, "problem! %s in ", mesh->mName.data);
     throw_c("mod_load_mesh: failed to find material in map!");
   }
 
   for (int i = 0; i < mesh->mNumVertices; i++) {
-    v3f pos = *(v3f *)&mesh->mVertices[i], norm = *(v3f *)&mesh->mNormals[i];
+    v3 pos = *(v3 *)&mesh->mVertices[i], norm = *(v3 *)&mesh->mNormals[i];
+
+    float temp = pos.z;
+    pos.z = pos.y;
+    pos.y = -temp;
+
+    temp = norm.z;
+    norm.z = norm.y;
+    norm.y = -temp;
 
     vtxs[i] = (obj_vtx){pos, norm};
     b->min = v3_min(b->min, vtxs[i].pos);
@@ -538,7 +562,7 @@ mod_load_mesh(mod *m, lmap *mats, box3 *b, struct aiMesh *mesh,
              mesh->mNumVertices,
              vtxs);
 
-  uint *inds = arr_new(uint, 4);
+  u32 *inds = arr_new(u32, 4);
   for (int i = 0; i < mesh->mNumFaces; i++) {
     for (int j = 0; j < mesh->mFaces[i].mNumIndices; j++) {
       arr_add(&inds, &mesh->mFaces[i].mIndices[j]);
@@ -547,7 +571,7 @@ mod_load_mesh(mod *m, lmap *mats, box3 *b, struct aiMesh *mesh,
 
   buf_data_n(&ibo,
              GL_DYNAMIC_DRAW,
-             sizeof(uint),
+             sizeof(u32),
              arr_len(inds),
              inds);
 
@@ -606,11 +630,11 @@ lmap mod_load_mtl(char const *path) {
   char line[256];
   char name[64];
   while (fgets(line, 256, f)) {
-    mtl mat;
-    int r = sscanf(line, "%63s %u %u %f %f %f %f %d %f %f", name, &mat.dark,
+    mtl mat = {0};
+    int r = sscanf(line, "%63s %u %u %f %f %f %f %d %f %f %d", name, &mat.dark,
                    &mat.light, &mat.light_model.x, &mat.light_model.y,
                    &mat.light_model.z, &mat.shine, &mat.cull, &mat.wind,
-                   &mat.transmission);
+                   &mat.transmission, &mat.line);
     if (r < 10) {
       fprintf(stderr, "problem! %s in ", line);
       throw_c("mod_load_mtl: failed to parse mtl!");
@@ -639,7 +663,7 @@ mod mod_from_scene(struct aiScene const *scene, const char *path) {
   lmap mats = mod_load_mtl(path);
 
   float large = 1e20f;
-  box3 b = box3_new((v3f){large, large, large}, (v3f){-large, -large, -large});
+  box3 b = box3_new((v3){large, large, large}, (v3){-large, -large, -large});
 
   mod_load(&m, &mats, &b, scene->mRootNode, scene);
   m.bounds = b;
@@ -671,10 +695,12 @@ mod mod_new_mem(const char *mem, size_t len, const char *path) {
   return mod_from_scene(scene, path);
 }
 
-void mod_draw(mod *m, draw_src s, cam *c, m4f t) {
+void mod_draw(mod *m, draw_src s, cam *c, m4f t, int id) {
   for (int i = 0; i < m->n_meshes; i++) {
-    mod_get_sh(s, c, m->meshes[i].mat, t);
+    shdr *sh = mod_get_sh(s, c, m->meshes[i].mat, t);
+    shdr_1i(sh, "u_id", id);
     (m->meshes[i].mat.cull ? gl_enable : gl_disable)(GL_CULL_FACE);
+    gl_polygon_mode(GL_FRONT_AND_BACK, m->meshes[i].mat.line ? GL_LINE : GL_FILL);
 
     vao_bind(&m->meshes[i].vao);
     gl_draw_elements(GL_TRIANGLES, m->meshes[i].n_inds, GL_UNSIGNED_INT, 0);
@@ -683,20 +709,21 @@ void mod_draw(mod *m, draw_src s, cam *c, m4f t) {
   }
 
   gl_disable(GL_CULL_FACE);
+  gl_polygon_mode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
 shdr *mod_get_sh(draw_src s, cam *c, mtl m, m4f t) {
   static shdr *cam = NULL;
   static shdr *shade = NULL;
   if (!cam) {
-    cam = objdup(shdr_new(2,
-                          (shdr_spec[]){
+    cam = _new_(shdr_new(2,
+                         (shdr_spec[]){
                             {GL_VERTEX_SHADER,   "res/mod.vsh"},
                             {GL_FRAGMENT_SHADER, "res/mod_light.fsh"},
                           }));
 
-    shade = objdup(shdr_new(2,
-                            (shdr_spec[]){
+    shade = _new_(shdr_new(2,
+                           (shdr_spec[]){
                               {GL_VERTEX_SHADER,   "res/mod_depth.vsh"},
                               {GL_FRAGMENT_SHADER, "res/mod_depth.fsh"},
                             }));
@@ -723,8 +750,8 @@ void cam_make_frustum(cam *c) {
   frustum *f = &c->frustum_shade;
   float half_v = cam_far * tanf(c->zoom * .5f);
   float half_h = half_v * c->aspect;
-  v3f front = v3_mul(c->front, cam_far + 15.f);
-  v3f eye = v3_sub(cam_get_eye(c), v3_mul(c->front, 15.f));
+  v3 front = v3_mul(c->front, cam_far + 15.f);
+  v3 eye = v3_sub(cam_get_eye(c), v3_mul(c->front, 15.f));
 
   f->near = plane_new(v3_add(eye, v3_mul(c->front, cam_near)), c->front);
   f->far = plane_new(v3_add(eye, front), v3_neg(c->front));
@@ -773,7 +800,7 @@ void cam_rot(cam *c) {
   float yaw = c->yaw;
   float pitch = c->pitch;
 
-  v3f front = v3_normed((v3f){
+  v3 front = v3_normed((v3){
     cosf(rad(yaw)) * cosf(rad(pitch)),
     sinf(rad(pitch)),
     sinf(rad(yaw)) * cosf(rad(pitch))
@@ -781,10 +808,10 @@ void cam_rot(cam *c) {
 
   c->front = front;
 
-  v3f right = v3_cross(front, c->world_up);
+  v3 right = v3_cross(front, c->world_up);
   c->right = right;
 
-  v3f up = v3_cross(right, front);
+  v3 up = v3_cross(right, front);
   c->up = up;
 
   m4f look = cam_get_look(c);
@@ -822,16 +849,24 @@ int *quad_indices(int w, int h) {
   return inds;
 }
 
-void imod_opti_vao(vao *v, buf *model) {
+void imod_opti_vao(vao *v, buf *model, buf *id) {
   gl_vertex_array_vertex_buffer(v->id, 1, model->id, 0, sizeof(m4f));
   for (int i = 0; i < 4; i++) {
     gl_enable_vertex_array_attrib(v->id, v->n_attrs + i);
     gl_vertex_array_attrib_format(v->id, v->n_attrs + i, 4, GL_FLOAT, GL_FALSE,
-                                  i * sizeof(v4f));
+                                  i * sizeof(v4));
     gl_vertex_array_attrib_binding(v->id, v->n_attrs + i, 1);
   }
 
   gl_vertex_array_binding_divisor(v->id, 1, 1);
+
+  gl_vertex_array_vertex_buffer(v->id, 2, model->id, 0, sizeof(m4f));
+
+  gl_enable_vertex_array_attrib(v->id, v->n_attrs + 4);
+  gl_vertex_array_attrib_i_format(v->id, v->n_attrs + 4, 1, GL_UNSIGNED_INT, 0);
+  gl_vertex_array_attrib_binding(v->id, v->n_attrs + 4, 2);
+
+  gl_vertex_array_binding_divisor(v->id, 2, 1);
 }
 
 static imod **all_imods = NULL;
@@ -847,16 +882,17 @@ imod *imod_new(mod m) {
     .n_texes = m.n_texes,
     .texes = m.texes,
     .model = arr_new(m4f, 4),
+    .id = arr_new(int, 4),
     .model_buf = buf_new(GL_ARRAY_BUFFER),
     .bounds = m.bounds
   };
 
   for (int i = 0; i < m.n_meshes; i++) {
     mesh *me = &m.meshes[i];
-    imod_opti_vao(&me->vao, &out.model_buf);
+    imod_opti_vao(&me->vao, &out.model_buf, &out.id_buf);
   }
 
-  imod *p = objdup(out);
+  imod *p = _new_(out);
 
   arr_add(&all_imods, &p);
 
@@ -876,6 +912,7 @@ void imod_draw(draw_src s, cam *c) {
     for (int i = 0; i < m->n_meshes; i++) {
       imod_get_sh(s, c, m->meshes[i].mat);
       (m->meshes[i].mat.cull ? gl_enable : gl_disable)(GL_CULL_FACE);
+      gl_polygon_mode(GL_FRONT_AND_BACK, m->meshes[i].mat.line ? GL_LINE : GL_FILL);
 
       vao_bind(&m->meshes[i].vao);
       gl_draw_elements_instanced(GL_TRIANGLES, m->meshes[i].n_inds,
@@ -888,23 +925,25 @@ void imod_draw(draw_src s, cam *c) {
   }
 
   gl_disable(GL_CULL_FACE);
+  gl_polygon_mode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void imod_add(imod *m, m4f t) {
+void imod_add(imod *m, m4f t, int id) {
   m4f t_tpose = m4_tpose(&t);
   arr_add(&m->model, &t_tpose);
+  arr_add(&m->id, &id);
 }
 
 shdr *imod_get_sh(draw_src s, cam *c, mtl m) {
   static shdr *cam = NULL;
   static shdr *shade = NULL;
   if (!cam) {
-    cam = objdup(shdr_new(2, (shdr_spec[]){
+    cam = _new_(shdr_new(2, (shdr_spec[]){
       GL_VERTEX_SHADER, "res/imod.vsh",
       GL_FRAGMENT_SHADER, "res/mod_light.fsh"
     }));
 
-    shade = objdup(shdr_new(2, (shdr_spec[]){
+    shade = _new_(shdr_new(2, (shdr_spec[]){
       GL_VERTEX_SHADER, "res/imod_depth.vsh",
       GL_FRAGMENT_SHADER, "res/mod_depth.fsh"
     }));
@@ -944,7 +983,7 @@ void dof_up(shdr *s, dof args) {
   tex_bind(args.depth, args.depth_unit);
   shdr_1i(s, "u_tex", args.tex_unit);
   shdr_2f(s, "u_tex_size",
-          (v2f){1.f / args.screen_size.x, 1.f / args.screen_size.y});
+          (v2){1.f / args.screen_size.x, 1.f / args.screen_size.y});
   shdr_1i(s, "u_depth", args.depth_unit);
   shdr_1i(s, "u_size", args.size);
   shdr_1f(s, "u_min_depth", args.min_depth);
@@ -954,15 +993,15 @@ void dof_up(shdr *s, dof args) {
   shdr_1f(s, "u_far", cam_far);
 }
 
-v3f cam_get_eye(cam *c) {
+v3 cam_get_eye(cam *c) {
   return v3_sub(c->pos, v3_mul(c->front, c->dist));
 }
 
-float plane_sdf(plane p, v3f pt) {
+float plane_sdf(plane p, v3 pt) {
   return v3_dot(p.norm, pt) - p.dist;
 }
 
-plane plane_new(v3f point, v3f norm) {
+plane plane_new(v3 point, v3 norm) {
   v3_norm(&norm);
   return (plane){
     .norm = norm,

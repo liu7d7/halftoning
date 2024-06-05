@@ -1,94 +1,94 @@
 #include "gui.h"
 #include "app.h"
 
-void draw_circle(app *a, v2f pos, float rad, v4f color) {
+void draw_circle(v2 pos, float rad, v4 color) {
   static shdr *sh = NULL;
   static buf *vb = NULL;
   static vao *va = NULL;
   if (!sh) {
-    sh = objdup(shdr_new(2, (shdr_spec[]){
+    sh = _new_(shdr_new(2, (shdr_spec[]){
       {GL_VERTEX_SHADER,   "res/circle.vsh"},
       {GL_FRAGMENT_SHADER, "res/circle.fsh"}}));
 
-    vb = objdup(buf_new(GL_ARRAY_BUFFER));
+    vb = _new_(buf_new(GL_ARRAY_BUFFER));
 
-    va = objdup(vao_new(vb, NULL, 1, (attrib[]){attr_2f}));
+    va = _new_(vao_new(vb, NULL, 1, (attrib[]){attr_2f}));
   }
 
   float aa = min(rad / 10.f, 3);
   float real = rad + aa;
 
-  v2f v00 = v2_add(pos, (v2f){-real, -real}), v01 = v2_add(pos,
-                                                           (v2f){-real, real}),
-    v11 = v2_add(pos, (v2f){real, real}), v10 = v2_add(pos, (v2f){real, -real});
-  buf_data_n(vb, GL_DYNAMIC_DRAW, sizeof(v2f), 6,
-             (v2f[]){v00, v01, v11, v11, v10, v00});
+  v2 v00 = v2_add(pos, (v2){-real, -real}), v01 = v2_add(pos,
+                                                           (v2){-real, real}),
+    v11 = v2_add(pos, (v2){real, real}), v10 = v2_add(pos, (v2){real, -real});
+  buf_data_n(vb, GL_DYNAMIC_DRAW, sizeof(v2), 6,
+             (v2[]){v00, v01, v11, v11, v10, v00});
 
   shdr_bind(sh);
   shdr_4f(sh, "u_color", color);
   shdr_1f(sh, "u_rad", rad);
   shdr_2f(sh, "u_center", pos);
   shdr_m4f(sh, "u_proj",
-           m4_ortho(0, a->dim.x, a->dim.y, 0, -1.f, 1.f));
+           m4_ortho(0, a_->dim.x, a_->dim.y, 0, -1.f, 1.f));
   vao_bind(va);
   gl_draw_arrays(GL_TRIANGLES, 0, 6);
 }
 
-void draw_rect(app *a, v2f tl, v2f br, v4f color) {
+void draw_rect(v2 tl, v2 br, v4 color) {
   static shdr *sh = NULL;
   static buf *vb = NULL;
   static vao *va = NULL;
   if (!sh) {
-    sh = objdup(shdr_new(2, (shdr_spec[]){
+    sh = _new_(shdr_new(2, (shdr_spec[]){
       {GL_VERTEX_SHADER,   "res/rect.vsh"},
       {GL_FRAGMENT_SHADER, "res/rect.fsh"}}));
 
-    vb = objdup(buf_new(GL_ARRAY_BUFFER));
+    vb = _new_(buf_new(GL_ARRAY_BUFFER));
 
-    va = objdup(vao_new(vb, NULL, 1, (attrib[]){attr_2f}));
+    va = _new_(vao_new(vb, NULL, 1, (attrib[]){attr_2f}));
   }
 
-  v2f v00 = (v2f){tl.x, tl.y}, v01 = (v2f){tl.x, br.y}, v11 = (v2f){br.x, br.y},
-    v10 = (v2f){br.x, tl.y};
-  buf_data_n(vb, GL_DYNAMIC_DRAW, sizeof(v2f), 6,
-             (v2f[]){v00, v01, v11, v11, v10, v00});
+  v2 v00 = (v2){tl.x, tl.y}, v01 = (v2){tl.x, br.y}, v11 = (v2){br.x, br.y},
+    v10 = (v2){br.x, tl.y};
+  buf_data_n(vb, GL_DYNAMIC_DRAW, sizeof(v2), 6,
+             (v2[]){v00, v01, v11, v11, v10, v00});
 
   shdr_bind(sh);
   shdr_4f(sh, "u_color", color);
   shdr_m4f(sh, "u_proj",
-           m4_ortho(0, a->dim.x, a->dim.y, 0, -1.f, 1.f));
+           m4_ortho(0, a_->dim.x, a_->dim.y, 0, -1.f, 1.f));
   vao_bind(va);
   gl_draw_arrays(GL_TRIANGLES, 0, 6);
 }
 
-void win_update_bounds(win *w, app *a) {
-  w->dim = v2_max(w->dim, (v2f){font_get_width(&a->font, w->title, 1) + 12,
-                                a->font.size + 12});
-  w->bar = box2_new(w->pos, v2_add(w->pos, (v2f){w->dim.x, a->font.size + 12}));
-  w->rsz = box2_new(v2_sub(v2_add(w->pos, w->dim), (v2f){30, 30}),
-                    v2_sub(v2_add(w->pos, w->dim), (v2f){6, 6}));
+void win_update_bounds(win *w) {
+  w->dim = v2_max(w->dim, (v2){font_get_width(&a_->text, w->title, 1) + 12,
+                                a_->text.size + 12});
+  w->bar = box2_new(w->pos, v2_add(w->pos, (v2){w->dim.x, a_->text.size + 12}));
+  w->rsz = box2_new(v2_sub(v2_add(w->pos, w->dim), (v2){30, 30}),
+                    v2_sub(v2_add(w->pos, w->dim), (v2){6, 6}));
 }
 
-void win_draw(win *w, app *a) {
-  win_update_bounds(w, a);
+void win_draw(win *w) {
+  win_update_bounds(w);
 
-  v4f const bg_color = (v4f){0, 0, 0, 0.6f};
-  v4f const highlight = (v4f){1, 0, 1, 0.8f};
-  draw_rect(a, w->pos, v2_add(w->pos, w->dim), bg_color);
-  v4f rsz_color = box2_contains(w->rsz, a->mouse) ? highlight : bg_color;
-  draw_rect(a, v2_sub(v2_add(w->pos, w->dim), (v2f){30, 30}),
-            v2_sub(v2_add(w->pos, w->dim), (v2f){6, 6}), rsz_color);
-  font_draw(&a->font, a, w->title, v2_add(w->pos, (v2f){6, 6}), 0xffffffff, 1,
+  v4 const bg_color = (v4){0, 0, 0, 0.6f};
+  v4 const highlight = (v4){1, 0, 1, 0.8f};
+  draw_rect(w->pos, v2_add(w->pos, w->dim), bg_color);
+  v4 rsz_color = box2_contains(w->rsz, a_->mouse) ? highlight : bg_color;
+  draw_rect(v2_sub(v2_add(w->pos, w->dim), (v2){30, 30}),
+            v2_sub(v2_add(w->pos, w->dim), (v2){6, 6}), rsz_color);
+  font_draw(&a_->text, w->title, v2_add(w->pos, (v2){6, 6}), 0xffffffff, 1,
             1.f);
 }
 
-int win_click(win *w, v2f pos) {
+int win_click(win *w, v2 pos) {
   if (box2_contains(w->rsz, pos)) {
-//    w->rsz_drag =
+    return 1;
   }
 }
 
-void widget_draw(widget *w, app *a) {
+void widget_draw(widget *w) {
 
 }
 
@@ -127,7 +127,7 @@ void win_key(win *w, char c) {
 
 }
 
-win win_new(const char *title, widget *widgets, v2f pos, v2f dim) {
+win win_new(const char *title, widget *widgets, v2 pos, v2 dim) {
   return (win){
     .title = title,
     .widgets = widgets,
@@ -137,6 +137,26 @@ win win_new(const char *title, widget *widgets, v2f pos, v2f dim) {
   };
 }
 
-void draw_line_graph(struct app *a, v2f points, v4f color) {
-  
+void draw_line_graph(v2 *points, v4 color) {
+  static shdr *sh;
+  static vao *va;
+  static buf *vb;
+  if (!sh) {
+    sh = _new_(shdr_new(2, (shdr_spec[]){
+      {GL_VERTEX_SHADER, "res/line.vsh"},
+      {GL_FRAGMENT_SHADER, "res/line.fsh"},
+    }));
+
+    vb = _new_(buf_new(GL_ARRAY_BUFFER));
+
+    va = _new_(vao_new(vb, NULL, 1, (attrib[]){attr_2f}));
+  }
+
+  buf_data_n(vb, GL_DYNAMIC_DRAW, sizeof(v2), arr_len(points), points);
+
+  shdr_bind(sh);
+  shdr_4f(sh, "u_color", color);
+  shdr_m4f(sh, "u_proj", m4_ortho(0, a_->dim.x, a_->dim.y, 0, -1.f, 1.f));
+  vao_bind(va);
+  gl_draw_arrays(GL_LINE_STRIP, 0, arr_len(points));
 }
