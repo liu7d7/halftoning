@@ -10,7 +10,7 @@ text font_new(u8 *font_file[fw_n], int n_chars, float size) {
     .n_chars = n_chars,
     .va = vao_new(&b, NULL, 3, (attrib[]){attr_3f, attr_2f, attr_4f}),
     .vb = b,
-    .vs = arr_new(font_vtx, 576)
+    .vs = arr_new_sized(font_vtx, 576)
   };
 
   stbtt_fontinfo inf[fw_n];
@@ -18,7 +18,7 @@ text font_new(u8 *font_file[fw_n], int n_chars, float size) {
     if (!font_file[i]) continue;
     f.chars[i] = malloc(sizeof(stbtt_packedchar) * 256);
     if (!stbtt_InitFont(&inf[i], font_file[i], 0)) {
-      throw_c("font_new: failed to load text");
+      throwf("font_new: failed to load text");
     }
   }
 
@@ -88,7 +88,7 @@ font_draw(text *f, const char *text, v2 pos, u32 color, int shadow,
         default:;
       }
 
-      if (!f->chars[fw]) throw_c("font_draw: text weight modifier not supported");
+      if (!f->chars[fw]) throwf("font_draw: text weight modifier not supported");
       continue;
     }
 
@@ -183,7 +183,7 @@ float font_get_width(text *f, char const *text, float scale) {
         default:;
       }
 
-      if (!f->chars[fw]) throw_c("font_draw: text weight modifier not supported");
+      if (!f->chars[fw]) throwf("font_draw: text weight modifier not supported");
       continue;
     }
 
@@ -201,13 +201,13 @@ float font_get_width(text *f, char const *text, float scale) {
 shdr *font_get_sh() {
   static shdr *sh = NULL;
   if (!sh) {
-    sh = _new_(shdr_new(2, (shdr_spec[]){
+    sh = _new_(shdr_new(2, (shdr_s[]){
       {GL_VERTEX_SHADER,   "res/text.vsh"},
       {GL_FRAGMENT_SHADER, "res/text.fsh"}
     }));
   }
 
-  shdr_m4f(sh, "u_proj", m4_ortho(0, a_->dim.x, a_->dim.y, 0, -5, 5));
+  shdr_m4f(sh, "u_proj", m4_ortho(0, $.dim.x, $.dim.y, 0, -5, 5));
   shdr_1i(sh, "u_tex", 0);
   shdr_bind(sh);
 

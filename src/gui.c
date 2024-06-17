@@ -6,7 +6,7 @@ void draw_circle(v2 pos, float rad, v4 color) {
   static buf *vb = NULL;
   static vao *va = NULL;
   if (!sh) {
-    sh = _new_(shdr_new(2, (shdr_spec[]){
+    sh = _new_(shdr_new(2, (shdr_s[]){
       {GL_VERTEX_SHADER,   "res/circle.vsh"},
       {GL_FRAGMENT_SHADER, "res/circle.fsh"}}));
 
@@ -19,7 +19,7 @@ void draw_circle(v2 pos, float rad, v4 color) {
   float real = rad + aa;
 
   v2 v00 = v2_add(pos, (v2){-real, -real}), v01 = v2_add(pos,
-                                                           (v2){-real, real}),
+                                                         (v2){-real, real}),
     v11 = v2_add(pos, (v2){real, real}), v10 = v2_add(pos, (v2){real, -real});
   buf_data_n(vb, GL_DYNAMIC_DRAW, sizeof(v2), 6,
              (v2[]){v00, v01, v11, v11, v10, v00});
@@ -29,7 +29,7 @@ void draw_circle(v2 pos, float rad, v4 color) {
   shdr_1f(sh, "u_rad", rad);
   shdr_2f(sh, "u_center", pos);
   shdr_m4f(sh, "u_proj",
-           m4_ortho(0, a_->dim.x, a_->dim.y, 0, -1.f, 1.f));
+           m4_ortho(0, $.dim.x, $.dim.y, 0, -1.f, 1.f));
   vao_bind(va);
   gl_draw_arrays(GL_TRIANGLES, 0, 6);
 }
@@ -39,7 +39,7 @@ void draw_rect(v2 tl, v2 br, v4 color) {
   static buf *vb = NULL;
   static vao *va = NULL;
   if (!sh) {
-    sh = _new_(shdr_new(2, (shdr_spec[]){
+    sh = _new_(shdr_new(2, (shdr_s[]){
       {GL_VERTEX_SHADER,   "res/rect.vsh"},
       {GL_FRAGMENT_SHADER, "res/rect.fsh"}}));
 
@@ -56,81 +56,72 @@ void draw_rect(v2 tl, v2 br, v4 color) {
   shdr_bind(sh);
   shdr_4f(sh, "u_color", color);
   shdr_m4f(sh, "u_proj",
-           m4_ortho(0, a_->dim.x, a_->dim.y, 0, -1.f, 1.f));
+           m4_ortho(0, $.dim.x, $.dim.y, 0, -1.f, 1.f));
   vao_bind(va);
   gl_draw_arrays(GL_TRIANGLES, 0, 6);
 }
 
 void win_update_bounds(win *w) {
-  w->dim = v2_max(w->dim, (v2){font_get_width(&a_->text, w->title, 1) + 12,
-                                a_->text.size + 12});
-  w->bar = box2_new(w->pos, v2_add(w->pos, (v2){w->dim.x, a_->text.size + 12}));
+  w->dim = v2_max(w->dim, (v2){font_get_width(&$.text, w->title, 1) + 12,
+                               $.text.size + 12});
+  w->bar = box2_new(w->pos, v2_add(w->pos, (v2){w->dim.x, $.text.size + 12}));
   w->rsz = box2_new(v2_sub(v2_add(w->pos, w->dim), (v2){30, 30}),
                     v2_sub(v2_add(w->pos, w->dim), (v2){6, 6}));
 }
 
 void win_draw(win *w) {
-  win_update_bounds(w);
-
   v4 const bg_color = (v4){0, 0, 0, 0.6f};
   v4 const highlight = (v4){1, 0, 1, 0.8f};
+  if (w->rsz_dragging) {
+    w->dim = v2_add(w->dim, v2_sub($.mouse, w->rsz_drag));
+    w->rsz_drag = $.mouse;
+  }
+
+  if (w->dragging) {
+    w->pos = v2_add(w->pos, v2_sub($.mouse, w->drag));
+    w->drag = $.mouse;
+  }
+
+  win_update_bounds(w);
+
   draw_rect(w->pos, v2_add(w->pos, w->dim), bg_color);
-  v4 rsz_color = box2_contains(w->rsz, a_->mouse) ? highlight : bg_color;
+  v4 rsz_color = (box2_contains(w->rsz, $.mouse) || w->rsz_dragging) ? highlight
+                                                                     : bg_color;
   draw_rect(v2_sub(v2_add(w->pos, w->dim), (v2){30, 30}),
             v2_sub(v2_add(w->pos, w->dim), (v2){6, 6}), rsz_color);
-  font_draw(&a_->text, w->title, v2_add(w->pos, (v2){6, 6}), 0xffffffff, 1,
+  font_draw(&$.text, w->title, v2_add(w->pos, (v2){6, 6}), 0xffffffff, 1,
             1.f);
 }
 
 int win_click(win *w, v2 pos) {
+  win_update_bounds(w);
+
   if (box2_contains(w->rsz, pos)) {
+    w->rsz_drag = pos;
+    w->rsz_dragging = 1;
     return 1;
   }
-}
 
-void widget_draw(widget *w) {
+  if (box2_contains(w->bar, pos)) {
+    w->drag = pos;
+    w->dragging = 1;
+    return 1;
+  }
 
-}
+  if (box2_contains((box2){w->pos, v2_add(w->pos, w->dim)}, pos)) {
+    return 1;
+  }
 
-slider
-slider_new(float min, float max, float val, void *user_data, slider_cb cb) {
-  return (slider){
-    .type = wt_slider,
-    .min = min, .max = max, .val = val,
-    .cb = cb,
-    .user_data = user_data
-  };
-}
-
-info info_new(void *user_data, info_cb cb) {
-  return (info){
-    .type = wt_info,
-    .cb = cb,
-    .user_data = user_data
-  };
-}
-
-input_box input_box_new(char *val, void *user_data, input_box_cb cb) {
-  return (input_box){
-    .type = wt_input_box,
-    .user_data = user_data,
-    .val = val,
-    .cb = cb
-  };
-}
-
-void win_lose_focus(win *w) {
-
+  return 0;
 }
 
 void win_key(win *w, char c) {
 
 }
 
-win win_new(const char *title, widget *widgets, v2 pos, v2 dim) {
+win win_new(const char *title, v2 pos, v2 dim) {
   return (win){
     .title = title,
-    .widgets = widgets,
     .drag = v2_zero,
     .pos = pos,
     .dim = dim
@@ -142,8 +133,8 @@ void draw_line_graph(v2 *points, v4 color) {
   static vao *va;
   static buf *vb;
   if (!sh) {
-    sh = _new_(shdr_new(2, (shdr_spec[]){
-      {GL_VERTEX_SHADER, "res/line.vsh"},
+    sh = _new_(shdr_new(2, (shdr_s[]){
+      {GL_VERTEX_SHADER,   "res/line.vsh"},
       {GL_FRAGMENT_SHADER, "res/line.fsh"},
     }));
 
@@ -156,7 +147,12 @@ void draw_line_graph(v2 *points, v4 color) {
 
   shdr_bind(sh);
   shdr_4f(sh, "u_color", color);
-  shdr_m4f(sh, "u_proj", m4_ortho(0, a_->dim.x, a_->dim.y, 0, -1.f, 1.f));
+  shdr_m4f(sh, "u_proj", m4_ortho(0, $.dim.x, $.dim.y, 0, -1.f, 1.f));
   vao_bind(va);
   gl_draw_arrays(GL_LINE_STRIP, 0, arr_len(points));
+}
+
+void win_rel(win *w) {
+  w->rsz_dragging = 0;
+  w->dragging = 0;
 }

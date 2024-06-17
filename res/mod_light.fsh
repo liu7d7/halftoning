@@ -16,20 +16,23 @@ uniform float u_shine;
 uniform vec2 u_light_tex_size;
 uniform float u_trans;
 uniform sampler2D u_light_tex;
+uniform float u_alpha;
 
 const vec3 light_dir = vec3(-1, 2, -1);
 const float gauss_3x3[3][3] = {
-{1./16., 1./8., 1./16.},
-{1./8., 1./4., 1./8.},
-{1./16., 1./8., 1./16.},
+{ 1. / 16., 1. / 8., 1. / 16. },
+{ 1. / 8., 1. / 4., 1. / 8. },
+{ 1. / 16., 1. / 8., 1. / 16. },
 };
 const float gauss_5x5[5][5] = {
-{0.003, 0.013, 0.022, 0.013, 0.003},
-{0.013, 0.059, 0.097, 0.059, 0.013},
-{0.022, 0.097, 0.159, 0.097, 0.022},
-{0.013, 0.059, 0.097, 0.059, 0.013},
-{0.003, 0.013, 0.022, 0.013, 0.003},
+{ 0.003, 0.013, 0.022, 0.013, 0.003 },
+{ 0.013, 0.059, 0.097, 0.059, 0.013 },
+{ 0.022, 0.097, 0.159, 0.097, 0.022 },
+{ 0.013, 0.059, 0.097, 0.059, 0.013 },
+{ 0.003, 0.013, 0.022, 0.013, 0.003 },
 };
+
+#include <res/hash.glsl>
 
 float shadow_calc() {
   vec3 proj = v_light_space_pos;
@@ -57,6 +60,8 @@ vec3 light_calc(vec3 N, float transmission) {
 }
 
 void main() {
+  if (hash(v_pos) > u_alpha) discard;
+
   vec3 norm = v_norm;
   float transmission = 1.;
   if (!gl_FrontFacing) {

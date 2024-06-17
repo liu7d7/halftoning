@@ -1,25 +1,25 @@
 #include "world.h"
 #include "typedefs.h"
 #include "body.h"
-#include "lmap.h"
+#include "map.h"
 #include "app.h"
 
 world *world_new(obj player) {
   buf vb = buf_new(GL_ARRAY_BUFFER), ib = buf_new(GL_ELEMENT_ARRAY_BUFFER);
 
   auto w = _new_((world){
-    .chunks = lmap_new(16, sizeof(iv2), sizeof(chunk), 0.5f, iv2_peq, iv2_hash),
-    .objs = arr_new(obj, 4),
-    .objs_tick = arr_new(obj, 4),
-    .objs_to_add = arr_new(obj, 4),
+    .chunks = map_new(16, sizeof(iv2), sizeof(chunk), 0.5f, iv2_peq, iv2_hash),
+    .objs = arr_new(obj),
+    .objs_tick = arr_new(obj),
+    .objs_to_add = arr_new(obj),
     .draw_lock = PTHREAD_MUTEX_INITIALIZER,
     .vb = vb,
     .ib = ib,
     .va = vao_new(&vb, &ib, 3, (attrib[]){attr_3f, attr_3f, attr_1i}),
     .vb_dirty = 0,
     .last_chunk_pos = (iv2){INT_MAX, INT_MAX},
-    .vb_cache = arr_new(ch_vtx, 4),
-    .ib_cache = arr_new(int, 4),
+    .vb_cache = arr_new(ch_vtx),
+    .ib_cache = arr_new(int),
   });
 
   world_add_obj(w, &player);
@@ -28,7 +28,7 @@ world *world_new(obj player) {
   for (int i = -world_draw_dist; i <= world_draw_dist; i++) {
     for (int j = -world_draw_dist; j <= world_draw_dist; j++) {
       chunk c = chunk_new(w, (iv2){i, j});
-      lmap_add(&w->chunks, &(iv2){i, j}, &c);
+      map_add(&w->chunks, &(iv2){i, j}, &c);
     }
   }
 #endif
@@ -68,7 +68,7 @@ void world_tick(world *w, cam *c) {
 
       iv2 chunk_pos = {cam_pos.x + i, cam_pos.y + j};
 
-      chunk *ch = lmap_at(&w->chunks, &chunk_pos);
+      chunk *ch = map_at(&w->chunks, &chunk_pos);
       if (!ch) continue;
 
       reg *r = &w->regions[i + world_draw_dist][j + world_draw_dist];
@@ -155,11 +155,11 @@ void world_cache(world *w, iv2 cam_to_chunk) {
 
         iv2 chunk_pos = {cam_to_chunk.x + i, cam_to_chunk.y + j};
 
-        chunk *ch = lmap_at(&w->chunks, &chunk_pos);
+        chunk *ch = map_at(&w->chunks, &chunk_pos);
 
         if (!ch) {
           chunk gen = chunk_new(w, chunk_pos);
-          ch = lmap_add(&w->chunks, &chunk_pos, &gen);
+          ch = map_add(&w->chunks, &chunk_pos, &gen);
         }
 
         arr_add_arr(&w->vb_cache, ch->data, chunk_len * chunk_len,
@@ -203,9 +203,9 @@ void world_draw(world *w, draw_src s, cam *c, float d) {
   vao_bind(&w->va);
   size_t n_inds = arr_len(w->ib_cache);
   gl_draw_elements(GL_TRIANGLES, n_inds, GL_UNSIGNED_INT, 0);
-  the_app.n_tris += n_inds / 3;
+  $.n_tris += n_inds / 3;
 
-  the_app.n_drawn = the_app.n_close = 0;
+  $.n_drawn = $.n_close = 0;
 
   for (obj *o = w->objs, *end = arr_end(w->objs); o != end; o++) {
     body *b = &o->body;
@@ -213,13 +213,13 @@ void world_draw(world *w, draw_src s, cam *c, float d) {
       continue;
     }
 
-    the_app.n_close++;
+    $.n_close++;
 
-    if (!cam_test_box(&the_app.cam, obj_get_box(o), s)) {
+    if (!cam_test_box(&$.cam, obj_get_box(o), s)) {
       continue;
     }
 
-    the_app.n_drawn++;
+    $.n_drawn++;
 
     obj_draw(o, s, c, d);
   }
@@ -227,7 +227,7 @@ void world_draw(world *w, draw_src s, cam *c, float d) {
 
 int world_raycast(world *w, v3 o, v3 d, float l) {
   for (obj *e = w->objs, *end = arr_end(e); e != end; e++) {
-    
+//    obj_raycast(e,)
   }
 }
 

@@ -52,8 +52,8 @@ void reg_add_dyn_v(reg *r, body **o) {
 
 reg reg_new() {
   return (reg){
-    .sta = arr_new(body, 4),
-    .dyn = arr_new(body*, 4),
+    .sta = arr_new(body),
+    .dyn = arr_new(body*),
   };
 }
 

@@ -5,7 +5,7 @@
 #include "typedefs.h"
 #include "err.h"
 #include "body.h"
-#include "lmap.h"
+#include "map.h"
 #include <assimp/cimport.h>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -38,7 +38,7 @@ typedef struct cam {
 
   v2 last_mouse_pos;
   bool has_last, shade;
-  m4f vp, cvp;
+  m4 vp, cvp;
 
   frustum frustum_shade, frustum_cam;
 } cam;
@@ -51,28 +51,30 @@ void cam_rot(cam *c);
 
 v3 cam_get_eye(cam *c);
 
-m4f cam_get_look(cam *c);
+m4 cam_get_look(cam *c);
 
-m4f cam_get_proj(cam *c);
+m4 cam_get_proj(cam *c);
 
 int cam_test_box(cam *c, box3 b, draw_src s);
 
 typedef struct shdr {
   u32 id;
 
-  lmap locs;
+  map locs;
 } shdr;
 
-typedef struct shdr_spec {
+typedef struct shdr_s {
   u32 type;
   char const *path;
-} shdr_spec;
+} shdr_s;
 
-shdr shdr_new(u32 n, shdr_spec *shdrs);
+int shdr_get_loc(shdr *s, char const *n);
+
+shdr shdr_new(u32 n, shdr_s *shdrs);
 
 void shdr_bind(shdr *s);
 
-void shdr_m4f(shdr *s, char const *n, m4f m);
+void shdr_m4f(shdr *s, char const *n, m4 m);
 
 void shdr_1i(shdr *s, char const *n, int m);
 
@@ -295,6 +297,7 @@ typedef struct mtl {
   float wind;
   float transmission;
   int line;
+  float alpha;
 } mtl;
 
 typedef struct mesh {
@@ -321,13 +324,15 @@ typedef struct mod {
   box3 bounds;
 } mod;
 
-shdr *mod_get_sh(draw_src s, cam *c, mtl m, m4f t);
+map mod_load_mtl(char const *path);
+
+shdr *mod_get_sh(draw_src s, cam *c, mtl m, m4 t);
 
 mod mod_new(char const *path);
 
 mod mod_new_mem(const char *mem, size_t len, const char *path);
 
-void mod_draw(mod *m, draw_src s, cam *c, m4f t, int id);
+void mod_draw(mod *m, draw_src s, cam *c, m4 t, int id);
 
 typedef struct imod {
   tex *texes;
@@ -336,7 +341,7 @@ typedef struct imod {
   mesh *meshes;
   int n_meshes;
 
-  m4f *model;
+  m4 *model;
   int *id;
   buf model_buf;
   buf id_buf;
@@ -347,27 +352,8 @@ typedef struct imod {
 imod *imod_new(mod m);
 shdr *imod_get_sh(draw_src s, cam *c, mtl m);
 void imod_draw(draw_src s, cam *c);
-void imod_add(imod *m, m4f t, int id);
+void imod_add(imod *m, m4 t, int id);
 
 mod mod_new_indirect_mtl(const char *path, const char *mtl);
 
 int *quad_indices(int w, int h);
-
-#define ani_bones_per_vtx 4
-
-typedef struct ani_vtx {
-  v3 pos;
-  v3 norm;
-  v3 tangent;
-  v3 bitangent;
-  int bones[4];
-  float weights[4];
-} ani_vtx;
-
-typedef struct ani_mesh {
-
-} ani_mesh;
-
-typedef struct ani_mod {
-
-} ani_mod;

@@ -4,7 +4,6 @@
 #include "world.h"
 #include "gui.h"
 #include <time.h>
-#include "windows.h"
 #include "pal.h"
 #include <pthread.h>
 
@@ -13,12 +12,11 @@
 float const low_res = 480.f;
 float const shade_aspect = 1.5f;
 iv2 const shade_dim = (iv2){(int)(8192 * shade_aspect), 8192};
-app the_app;
-app *a_;
+app $;
 
 app app_new(int width, int height, const char *name) {
   if (!glfw_init()) {
-    throw_c("Failed to initialize GLFW!");
+    throwf("Failed to initialize GLFW!");
   }
 
   GLFWwindow *win;
@@ -32,7 +30,7 @@ app app_new(int width, int height, const char *name) {
   glfw_window_hint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
   glfw_window_hint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
   if ((win = glfw_create_window(width, height, name, NULL, NULL)) == NULL) {
-    throw_c("Failed to create a GLFW window!");
+    throwf("Failed to create a GLFW window!");
   }
 
   glfw_make_context_current(win);
@@ -43,7 +41,7 @@ app app_new(int width, int height, const char *name) {
   glfw_swap_interval(0);
 
   if (!glad_load_gl_loader((GLADloadproc)glfw_get_proc_address)) {
-    throw_c("Failed to load GLAD!");
+    throwf("Failed to load GLAD!");
   }
 
   glfw_set_input_mode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -97,23 +95,23 @@ app app_new(int width, int height, const char *name) {
       {GL_COLOR_ATTACHMENT0,
        tex_spec_rgba16(lo_dim.x, lo_dim.y, GL_LINEAR)}}),
     .dither = shdr_new(2,
-                       (shdr_spec[]){
+                       (shdr_s[]){
                          {GL_VERTEX_SHADER,   "res/post.vsh"},
                          {GL_FRAGMENT_SHADER, "res/dither.fsh"}
                        }),
     .blit = shdr_new(2,
-                     (shdr_spec[]){
+                     (shdr_s[]){
                        {GL_VERTEX_SHADER,   "res/post.vsh"},
                        {GL_FRAGMENT_SHADER, "res/blit.fsh"}
                      }),
     .crt = shdr_new(2,
-                    (shdr_spec[]){
+                    (shdr_s[]){
                       {GL_VERTEX_SHADER,   "res/post.vsh"},
                       {GL_FRAGMENT_SHADER, "res/crt.fsh"}
                     }),
     .outline = shdr_new(2,
-                        (shdr_spec[]){
-                          {GL_VERTEX_SHADER, "res/post.vsh"},
+                        (shdr_s[]){
+                          {GL_VERTEX_SHADER,   "res/post.vsh"},
                           {GL_FRAGMENT_SHADER, "res/outline.fsh"},
                         }),
     .mspf = avg_num_new(120), .mspt = avg_num_new(
@@ -127,8 +125,11 @@ app app_new(int width, int height, const char *name) {
       [fw_bold] = read_bin_file("res/futura/futura-bold.ttf"),
       [fw_bold_ita] = read_bin_file("res/futura/futura-bold-ita.ttf"),
     }, 128, 44),
-    .win = win_new("hello world!", NULL, (v2){100, 100}, (v2){100, 400}),
-    .is_rendering_halftone = 1
+    .win = win_new("hello &bworld&r!", (v2){100, 100}, (v2){100, 400}),
+    .is_rendering_halftone = 1,
+    .temp = arena_new(1 << 22) /* 4 meg */,
+    .ball = mod_new_indirect_mtl("res/ball.glb", "res/ball_trans.glb"),
+    .cyl = ani_mod_new("res/cyl.dae")
   };
 }
 
@@ -136,7 +137,7 @@ void app_setup_user_ptr(app *g) {
   glfw_set_window_user_pointer(g->glfw_win, g);
 }
 
-struct timespec diff_timespec(const struct timespec time1,
+struct timespec timespec_diff(const struct timespec time1,
                               const struct timespec time0) {
   struct timespec diff = {
     .tv_sec = time1.tv_sec - time0.tv_sec,
@@ -162,7 +163,7 @@ float app_now() {
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
 
-  struct timespec diff = diff_timespec(ts, start);
+  struct timespec diff = timespec_diff(ts, start);
   auto res = (float)diff.tv_sec * 1e3f + (float)diff.tv_nsec / 1e6f;
 
   return res;
@@ -211,7 +212,7 @@ void *tick_runner(void *ap) {
 }
 
 void draw_graph(app *a, avg_num *v, v4 color, int bg) {
-  v2 *p = arr_new(v2, v->size);
+  v2 *p = arr_new_sized(v2, v->size);
   const float h = 200;
   const float w = 600;
   const float pad = 20;
@@ -255,14 +256,21 @@ void app_run(app *a) {
   fbo_draw_bufs(&a->main, 2,
                 (u32[]){GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1});
 
+  anime ani = anime_new(animation_new("res/cyl.dae", &a->cyl));
+
+  float frame_time = app_now();
   while (!glfw_window_should_close(a->glfw_win)) {
     auto start = app_now();
     a->n_tris = 0;
+
+    float rdt = app_now() - frame_time;
+    frame_time = app_now();
 
     gl_enable(GL_DEPTH_TEST);
 
     pthread_mutex_lock(&a->world->draw_lock);
     float dt = a->dt;
+    anime_tick(&ani, rdt / 1000.f);
     gl_viewport(0, 0, shade_dim.x, shade_dim.y);
     fbo_bind(&a->shade);
     gl_clear(GL_DEPTH_BUFFER_BIT);
@@ -272,29 +280,22 @@ void app_run(app *a) {
     gl_front_face(GL_CW);
     world_draw(a->world, ds_shade, &a->shade_cam, dt);
     imod_draw(ds_shade, &a->shade_cam);
+    ani_mod_draw(&a->cyl, &ani, ds_shade, &a->shade_cam, m4_ident, 0);
     gl_front_face(GL_CCW);
 
     {
-      shdr *sh = mod_get_sh(ds_cam, &a->cam, (mtl){}, m4_ident);
-      shdr_m4f(sh, "u_light_vp", a->shade_cam.vp);
-      tex_bind(fbo_tex_at(&a->shade, GL_DEPTH_ATTACHMENT), 3);
-      shdr_1i(sh, "u_light_tex", 3);
-      shdr_2f(sh, "u_light_tex_size",
-              (v2){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
+      shdr *sh[] = {mod_get_sh(ds_cam, &a->cam, (mtl){}, m4_ident),
+                    imod_get_sh(ds_cam, &a->cam, (mtl){}),
+                    ch_get_sh(ds_cam, &a->cam),
+                    ani_mod_get_sh(ds_cam, &a->cam, &ani_dummy, (mtl){}, m4_ident)};
 
-      sh = imod_get_sh(ds_cam, &a->cam, (mtl){});
-      shdr_m4f(sh, "u_light_vp", a->shade_cam.vp);
-      tex_bind(fbo_tex_at(&a->shade, GL_DEPTH_ATTACHMENT), 3);
-      shdr_1i(sh, "u_light_tex", 3);
-      shdr_2f(sh, "u_light_tex_size",
-              (v2){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
-
-      sh = ch_get_sh(ds_cam, &a->cam);
-      shdr_m4f(sh, "u_light_vp", a->shade_cam.vp);
-      tex_bind(fbo_tex_at(&a->shade, GL_DEPTH_ATTACHMENT), 3);
-      shdr_1i(sh, "u_light_tex", 3);
-      shdr_2f(sh, "u_light_tex_size",
-              (v2){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
+      for (int i = 0; i < sizeof(sh) / sizeof(sh[0]); i++) {
+        shdr_m4f(sh[i], "u_light_vp", a->shade_cam.vp);
+        tex_bind(fbo_tex_at(&a->shade, GL_DEPTH_ATTACHMENT), 3);
+        shdr_1i(sh[i], "u_light_tex", 3);
+        shdr_2f(sh[i], "u_light_tex_size",
+                (v2){1.f / (float)shade_dim.x, 1.f / (float)shade_dim.y});
+      }
     }
 
     gl_viewport(0, 0, a->lo_dim.x * 2, a->lo_dim.y * 2);
@@ -305,6 +306,7 @@ void app_run(app *a) {
     cam_rot(&a->cam);
     world_draw(a->world, ds_cam, &a->cam, dt);
     imod_draw(ds_cam, &a->cam);
+    ani_mod_draw(&a->cyl, &ani, ds_cam, &a->cam, m4_ident, 0);
     pthread_mutex_unlock(&a->world->draw_lock);
 
     // raycast to get id in player's reach
@@ -400,6 +402,8 @@ void app_run(app *a) {
     glfw_swap_buffers(a->glfw_win);
     avg_num_add(&a->mspf, (app_now() - start));
     glfw_poll_events();
+
+    arena_reset(&$.temp);
   }
 }
 
@@ -457,6 +461,11 @@ key_callback(GLFWwindow *win, int keycode, int scancode, int action, int mods) {
 void
 mouse_button_callback(GLFWwindow *win, int keycode, int action, int mods) {
   app *a = glfw_get_window_user_pointer(win);
+
+  if (action == GLFW_RELEASE) {
+    win_rel(&a->win);
+  }
+
   switch (keycode) {
     case GLFW_MOUSE_BUTTON_LEFT: {
       if (action != GLFW_PRESS) break;

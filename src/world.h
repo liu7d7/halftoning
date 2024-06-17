@@ -6,7 +6,7 @@
 #include "arr.h"
 #include "map.h"
 #include "reg.h"
-#include "lmap.h"
+#include "map.h"
 #include "chunk.h"
 #include "obj.h"
 
@@ -17,7 +17,7 @@
 
 typedef struct world {
   // iv2 -> chunk
-  lmap chunks;
+  map chunks;
   reg regions[world_sp_size][world_sp_size];
 
   obj *objs, *objs_tick, *objs_to_add;

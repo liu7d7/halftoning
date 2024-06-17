@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <process.h>
+#include <stdarg.h>
 
 #define result_definition(name, T) \
 struct name { \
@@ -38,7 +39,10 @@ static T name##_get(struct name self) {                     \
 
 [[noreturn]]
 
-static void throw_c(char const *error) {
-  fprintf(stderr, "%s\n", error);
+static void throwf(char const *error, ...) {
+  va_list args;
+  va_start(args, error);
+  vfprintf(stderr, error, args);
+  va_end(args);
   exit(-1);
 }

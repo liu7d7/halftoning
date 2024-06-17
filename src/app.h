@@ -10,6 +10,8 @@
 #include "text.h"
 #include "gui.h"
 #include "avg.h"
+#include "arena.h"
+#include "ani.h"
 
 typedef struct app {
   v2 dim;
@@ -26,6 +28,9 @@ typedef struct app {
   text text;
   win win;
   int player;
+  arena temp;
+  mod ball;
+  ani_mod cyl;
 
   // debug info
   int n_drawn, n_close;
@@ -35,8 +40,7 @@ typedef struct app {
   GLFWwindow *glfw_win;
 } app;
 
-extern app the_app;
-extern app *a_;
+extern app $;
 
 app app_new(int width, int height, char const *name);
 

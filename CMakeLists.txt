@@ -19,8 +19,6 @@ add_executable(wip main.c src/lib/glad/glad.c src/lib/glad/glad.h src/lib/glad/k
         src/arr.c
         src/lib/simplex/FastNoiseLite.h
         src/lib/simplex/FastNoiseLite.c
-        src/map.h
-        src/map.c
         src/world.h
         src/world.c
         src/reg.c
@@ -36,8 +34,8 @@ add_executable(wip main.c src/lib/glad/glad.c src/lib/glad/glad.h src/lib/glad/k
         src/box.c
         src/box.h
         src/stb_truetype.h
-        src/lmap.h
-        src/lmap.c
+        src/map.h
+        src/map.c
         src/hash.h
         src/pal.h
         src/chunk.h
@@ -46,8 +44,12 @@ add_executable(wip main.c src/lib/glad/glad.c src/lib/glad/glad.h src/lib/glad/k
         src/obj.c
         src/avg.h
         src/avg.c
-        src/tracy/TracyClient.cpp
         src/text.c
+        src/arena.h
+        src/arena.c
+        src/vars.c
+        src/ani.h
+        src/ani.c
 )
 
 add_compile_definitions(TRACY_ENABLE=1)

@@ -21,7 +21,7 @@ u8 *internal_arr_base_ptr(u8 *memory) {
   return memory - sizeof(arr_metadata);
 }
 
-void arr_add(void *thing, void *item) {
+void arr_add(void *thing, void const *item) {
   void **memory = thing;
   arr_metadata *data = internal_arr_get_metadata(*memory);
 
@@ -44,7 +44,7 @@ bool internal_arr_has(u8 *memory, u8 *element, size_t elem_size) {
   arr_metadata *data = internal_arr_get_metadata(memory);
 
   if (data->elem_size != elem_size) {
-    throw_c("incompatible type");
+    throwf("incompatible type");
   }
 
   for (int i = 0; i < data->count; i++) {
@@ -78,7 +78,7 @@ void arr_add_bulk(void *thing, void *src) {
   arr_metadata *src_meta = internal_arr_get_metadata(src);
 
   if (src_meta->elem_size != dst_meta->elem_size) {
-    throw_c("Mismatched element sizes in arr_add_bulk!");
+    throwf("Mismatched element sizes in arr_add_bulk!");
   }
 
   if (src_meta->count == 0) return;
@@ -146,7 +146,7 @@ void arr_copy(void *_dst, void *src) {
   arr_metadata dst_meta = *internal_arr_get_metadata(*dst);
   arr_metadata src_meta = *internal_arr_get_metadata(src);
   if (dst_meta.elem_size != src_meta.elem_size) {
-    throw_c("arr_copy: incompatible arrays!");
+    throwf("arr_copy: incompatible arrays!");
   }
 
   if (src_meta.count == 0) {

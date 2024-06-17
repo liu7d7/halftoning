@@ -20,9 +20,10 @@ u8 *internal_arr_new(size_t len, size_t elem_size);
 
 u8 *internal_arr_base_ptr(u8 *memory);
 
-#define arr_new(type, initial_size) (type*) internal_arr_new(initial_size, sizeof(type))
+#define arr_new_sized(type, initial_size) ((type*) internal_arr_new(initial_size, sizeof(type)))
+#define arr_new(type) arr_new_sized(type, 4)
 
-void arr_add(void *memory, void *item);
+void arr_add(void *memory, void const *item);
 
 void *arr_from_arr(size_t elem_size, size_t len, void *data);
 

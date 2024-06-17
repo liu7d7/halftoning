@@ -1,5 +1,4 @@
 #include "chunk.h"
-#include "arr.h"
 #include "world.h"
 #include "lib/simplex/FastNoiseLite.h"
 #include "app.h"
@@ -12,10 +11,11 @@ float chunk_get_y(v3 world_pos) {
     noise->noise_type = FNL_NOISE_OPENSIMPLEX2S;
   }
 
-  return fnlGetNoise2D(noise, world_pos.x * 9 + chunk_sizef * -63.f, world_pos.z * 9 + chunk_sizef * 48.f) * 0.5f +
+  float f = fnlGetNoise2D(noise, world_pos.x * 9 + chunk_sizef * -63.f, world_pos.z * 9 + chunk_sizef * 48.f) * 0.5f +
          fnlGetNoise2D(noise, world_pos.x * 2.f + chunk_sizef * 15.f, world_pos.z * 2.f + chunk_sizef * 15.f) * 4.5f +
          fnlGetNoise2D(noise, world_pos.x, world_pos.z) * 9.5f +
          fnlGetNoise2D(noise, world_pos.x * 0.25f - 112, world_pos.z * 0.25f + 32) * 18.5f;
+  return f;
 }
 
 v3 chunk_get_pos(iv2 pos, int off_x, int off_z) {
@@ -99,18 +99,19 @@ shdr *ch_get_sh(draw_src s, cam *c) {
   static mtl m = {
     .light = 6,
     .dark = 0,
-    .light_model = {0, 0.8f, 0}
+    .light_model = {0, 0.8f, 0},
+    .alpha = 1.f
   };
 
   if (!cam) {
     cam = _new_(shdr_new(2,
-                         (shdr_spec[]){
+                         (shdr_s[]){
                            {GL_VERTEX_SHADER,   "res/chunk.vsh"},
                            {GL_FRAGMENT_SHADER, "res/mod_light.fsh"},
                          }));
 
     shade = _new_(shdr_new(2,
-                           (shdr_spec[]){
+                           (shdr_s[]){
                              {GL_VERTEX_SHADER,   "res/mod_depth.vsh"},
                              {GL_FRAGMENT_SHADER, "res/mod_depth.fsh"},
                            }));
@@ -128,6 +129,7 @@ shdr *ch_get_sh(draw_src s, cam *c) {
   shdr_1f(cur, "u_trans", m.transmission);
   shdr_1f(cur, "u_shine", m.shine);
   shdr_1f(cur, "u_wind", m.wind);
+  shdr_1f(cur, "u_alpha", m.alpha);
   shdr_bind(cur);
 
   return cur;

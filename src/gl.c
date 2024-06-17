@@ -23,8 +23,8 @@ cam_new(v3 pos, v3 world_up, float yaw, float pitch, float aspect) {
 }
 
 void cam_tick(cam *c) {
-  if (c->has_last && a_->is_mouse_captured) {
-    v2 delta = v2_sub(a_->mouse, c->last_mouse_pos);
+  if (c->has_last && $.is_mouse_captured) {
+    v2 delta = v2_sub($.mouse, c->last_mouse_pos);
     c->target_yaw += delta.x;
     c->target_pitch -= delta.y;
 
@@ -32,20 +32,20 @@ void cam_tick(cam *c) {
     if (c->target_pitch < -89.9f) c->target_pitch = -89.9f;
   }
 
-  if (a_->is_mouse_captured) {
+  if ($.is_mouse_captured) {
     c->has_last = true;
-    c->last_mouse_pos = a_->mouse;
+    c->last_mouse_pos = $.mouse;
   }
 }
 
-m4f cam_get_look(cam *c) {
+m4 cam_get_look(cam *c) {
   return m4_look(cam_get_eye(c), c->front, c->up);
 }
 
 float const cam_near = 0.01f, cam_far =
   1.41421356f * 0.5f * chunk_size * world_draw_dist;
 
-m4f cam_get_proj(cam *c) {
+m4 cam_get_proj(cam *c) {
   if (c->shade) {
     return m4_ortho(-c->ortho_size / 2.f * c->aspect,
                     c->ortho_size / 2.f * c->aspect, c->ortho_size / 2.f,
@@ -56,20 +56,20 @@ m4f cam_get_proj(cam *c) {
   }
 }
 
-void shdr_verify(u32 gl_id) {
+void shdr_verify(u32 gl_id, char const *path) {
   int is_ok;
   char info_log[1024];
   gl_get_shaderiv(gl_id, GL_COMPILE_STATUS, &is_ok);
   if (!is_ok) {
     gl_get_shader_info_log(gl_id, 1024, NULL, info_log);
-    throw_c(info_log);
+    throwf("shdr_verify: %s\nat path: %s", info_log, path);
   }
 }
 
-u32 shdr_compile(shdr_spec s) {
+u32 shdr_compile(shdr_s s) {
   FILE *f = fopen(s.path, "r");
   if (!f) {
-    throw_c("Failed to open file for shdr_component!");
+    throwf("shdr_compile: failed to open file at %s for shdr_s!", s.path);
   }
 
   char *src = calloc(1 << 20, 1);
@@ -106,7 +106,7 @@ u32 shdr_compile(shdr_spec s) {
   gl_shader_source(gl_id, 1, (char const *[]){src},
                    (int[]){(int)strlen(src)});
   gl_compile_shader(gl_id);
-  shdr_verify(gl_id);
+  shdr_verify(gl_id, s.path);
 
   free(src);
   fclose(f);
@@ -120,11 +120,11 @@ void prog_verify(u32 gl_id) {
   gl_get_programiv(gl_id, GL_LINK_STATUS, &is_ok);
   if (!is_ok) {
     gl_get_program_info_log(gl_id, 1024, NULL, info_log);
-    throw_c(info_log);
+    throwf(info_log);
   }
 }
 
-shdr shdr_new(u32 n, shdr_spec *shdrs) {
+shdr shdr_new(u32 n, shdr_s *shdrs) {
   u32 sh_ids[n], id = gl_create_program();
 
   for (int i = 0; i < n; i++) {
@@ -137,7 +137,7 @@ shdr shdr_new(u32 n, shdr_spec *shdrs) {
 
   int count;
   gl_get_programiv(id, GL_ACTIVE_UNIFORMS, &count);
-  lmap locs = lmap_new(count, sizeof(char const *), sizeof(int), 0.75f, str_eq, str_hash);
+  map locs = map_new(count, sizeof(char const *), sizeof(int), 0.75f, str_eq, str_hash);
   for (int i = 0; i < count; i++) {
     char name[128];
     int len, size;
@@ -152,7 +152,7 @@ shdr shdr_new(u32 n, shdr_spec *shdrs) {
 
     char *heap_str = malloc(len + 1);
     strcpy_s(heap_str, len + 1, name);
-    lmap_add(&locs, &heap_str, &loc);
+    map_add(&locs, &heap_str, &loc);
   }
 
   for (int i = 0; i < n; i++) {
@@ -240,11 +240,11 @@ void buf_bind(buf *b) {
 static int shdr_invalid_loc = -1;
 
 int shdr_get_loc(shdr *s, char const *n) {
-  int *loc = lmap_at_or(&s->locs, &n, &shdr_invalid_loc);
+  int *loc = map_at_or(&s->locs, &n, &shdr_invalid_loc);
   return *loc;
 }
 
-void shdr_m4f(shdr *s, char const *n, m4f m) {
+void shdr_m4f(shdr *s, char const *n, m4 m) {
   gl_program_uniform_matrix_4fv(s->id, shdr_get_loc(s, n), 1,
                                 GL_TRUE,
                                 &m.v[0][0]);
@@ -371,7 +371,7 @@ tex tex_new(tex_spec spec) {
 
 void tex_resize(tex *t, int width, int height) {
   if (t->spec.pixels) {
-    throw_c("Can't resize a texture that specifies its pixels!");
+    throwf("Can't resize a texture that specifies its pixels!");
   }
 
   tex_spec resized_spec = t->spec;
@@ -383,7 +383,7 @@ void tex_resize(tex *t, int width, int height) {
 }
 
 void tex_bind(tex *t, u32 unit) {
-  if (unit >= 16) throw_c("Unit too high!");
+  if (unit >= 16) throwf("Unit too high!");
   gl_active_texture(unit + GL_TEXTURE0);
   gl_bind_texture(GL_TEXTURE_2D, t->id);
 }
@@ -433,7 +433,7 @@ tex *fbo_tex_at(fbo *f, u32 buf) {
     }
   }
 
-  throw_c("Failed to find attachment of framebuffer!");
+  throwf("Failed to find attachment of framebuffer!");
 }
 
 void
@@ -445,17 +445,17 @@ fbo_blit(fbo *src, fbo *dst, u32 src_a, u32 dst_a,
       GL_COLOR_BUFFER_BIT
     : src_a == GL_DEPTH_ATTACHMENT ?
       GL_DEPTH_BUFFER_BIT
-    : (throw_c("Failed to parse out a src_mask!"), -1);
+    : (throwf("Failed to parse out a src_mask!"), -1);
 
   int dst_mask =
     is_gl_buf_color_attachment(dst_a) ?
       GL_COLOR_BUFFER_BIT
     : dst_a == GL_DEPTH_ATTACHMENT ?
       GL_DEPTH_BUFFER_BIT
-    : (throw_c("Failed to parse out a dst_mask!"), -1);
+    : (throwf("Failed to parse out a dst_mask!"), -1);
   // @formatter:on
 
-  if (src_mask != dst_mask) throw_c("Src and dst masks do not match!");
+  if (src_mask != dst_mask) throwf("Src and dst masks do not match!");
 
   tex *src_tex = fbo_tex_at(src, src_a);
   tex *dst_tex = fbo_tex_at(dst, dst_a);
@@ -516,7 +516,7 @@ void dither_up(shdr *s, dither args) {
 }
 
 mesh
-mod_load_mesh(mod *m, lmap *mats, box3 *b, struct aiMesh *mesh,
+mod_load_mesh(mod *m, map *mats, box3 *b, struct aiMesh *mesh,
               const struct aiScene *scene) {
   obj_vtx *vtxs = malloc(sizeof(obj_vtx) * mesh->mNumVertices);
 
@@ -532,10 +532,9 @@ mod_load_mesh(mod *m, lmap *mats, box3 *b, struct aiMesh *mesh,
   }
 
   char *name_thing_ptr = name_thing;
-  mtl *mat = lmap_at(mats, &name_thing_ptr);
+  mtl *mat = map_at(mats, &name_thing_ptr);
   if (!mat) {
-    fprintf(stderr, "problem! %s in ", mesh->mName.data);
-    throw_c("mod_load_mesh: failed to find material in map!");
+    throwf("mod_load_mesh: failed to find material %s in map!", name);
   }
 
   for (int i = 0; i < mesh->mNumVertices; i++) {
@@ -562,7 +561,7 @@ mod_load_mesh(mod *m, lmap *mats, box3 *b, struct aiMesh *mesh,
              mesh->mNumVertices,
              vtxs);
 
-  u32 *inds = arr_new(u32, 4);
+  u32 *inds = arr_new(u32);
   for (int i = 0; i < mesh->mNumFaces; i++) {
     for (int j = 0; j < mesh->mFaces[i].mNumIndices; j++) {
       arr_add(&inds, &mesh->mFaces[i].mIndices[j]);
@@ -596,7 +595,7 @@ mod_load_mesh(mod *m, lmap *mats, box3 *b, struct aiMesh *mesh,
 }
 
 void
-mod_load(mod *m, lmap *mats, box3 *b, struct aiNode *node,
+mod_load(mod *m, map *mats, box3 *b, struct aiNode *node,
          const struct aiScene *scene) {
   for (int i = 0; i < node->mNumMeshes; i++) {
     struct aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
@@ -608,7 +607,7 @@ mod_load(mod *m, lmap *mats, box3 *b, struct aiNode *node,
   }
 }
 
-lmap mod_load_mtl(char const *path) {
+map mod_load_mtl(char const *path) {
   ssize_t path_len = strlen(path);
   ssize_t last_dot_idx = path_len - 1;
   for (; last_dot_idx >= 0 && path[last_dot_idx] != '.'; last_dot_idx--) {}
@@ -622,27 +621,26 @@ lmap mod_load_mtl(char const *path) {
 
   FILE *f = fopen(mtl_path, "r");
   if (!f) {
-    fprintf(stderr, "problem! %s in ", mtl_path);
-    throw_c("mod_load_mtl: failed to load material file!");
+    throwf("mod_load_mtl: failed to load material file at %s!", mtl_path);
   }
 
-  auto mats = lmap_new(4, sizeof(char *), sizeof(mtl), 0.75f, str_eq, str_hash);
+  auto mats = map_new(4, sizeof(char *), sizeof(mtl), 0.75f, str_eq, str_hash);
   char line[256];
   char name[64];
   while (fgets(line, 256, f)) {
     mtl mat = {0};
-    int r = sscanf(line, "%63s %u %u %f %f %f %f %d %f %f %d", name, &mat.dark,
+    mat.alpha = 1.f;
+    int r = sscanf(line, "%63s %u %u %f %f %f %f %d %f %f %f", name, &mat.dark,
                    &mat.light, &mat.light_model.x, &mat.light_model.y,
                    &mat.light_model.z, &mat.shine, &mat.cull, &mat.wind,
-                   &mat.transmission, &mat.line);
+                   &mat.transmission, &mat.alpha);
     if (r < 10) {
-      fprintf(stderr, "problem! %s in ", line);
-      throw_c("mod_load_mtl: failed to parse mtl!");
+      throwf("mod_load_mtl: failed to parse mtl out of '%s'!", line);
     }
     size_t name_size = strlen(name) + 1;
     char *heap_name = malloc(name_size);
     strcpy_s(heap_name, name_size, name);
-    lmap_add(&mats, &heap_name, &mat);
+    map_add(&mats, &heap_name, &mat);
   }
 
   fclose(f);
@@ -653,14 +651,14 @@ lmap mod_load_mtl(char const *path) {
 mod mod_from_scene(struct aiScene const *scene, const char *path) {
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
       !scene->mRootNode) {
-    throw_c(aiGetErrorString());
+    throwf(aiGetErrorString());
   }
 
   mod m = {
     .meshes = malloc(sizeof(mesh) * scene->mNumMeshes),
   };
 
-  lmap mats = mod_load_mtl(path);
+  map mats = mod_load_mtl(path);
 
   float large = 1e20f;
   box3 b = box3_new((v3){large, large, large}, (v3){-large, -large, -large});
@@ -695,35 +693,33 @@ mod mod_new_mem(const char *mem, size_t len, const char *path) {
   return mod_from_scene(scene, path);
 }
 
-void mod_draw(mod *m, draw_src s, cam *c, m4f t, int id) {
+void mod_draw(mod *m, draw_src s, cam *c, m4 t, int id) {
   for (int i = 0; i < m->n_meshes; i++) {
     shdr *sh = mod_get_sh(s, c, m->meshes[i].mat, t);
     shdr_1i(sh, "u_id", id);
     (m->meshes[i].mat.cull ? gl_enable : gl_disable)(GL_CULL_FACE);
-    gl_polygon_mode(GL_FRONT_AND_BACK, m->meshes[i].mat.line ? GL_LINE : GL_FILL);
 
     vao_bind(&m->meshes[i].vao);
     gl_draw_elements(GL_TRIANGLES, m->meshes[i].n_inds, GL_UNSIGNED_INT, 0);
 
-    the_app.n_tris += m->meshes[i].n_inds / 3;
+    $.n_tris += m->meshes[i].n_inds / 3;
   }
 
   gl_disable(GL_CULL_FACE);
-  gl_polygon_mode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-shdr *mod_get_sh(draw_src s, cam *c, mtl m, m4f t) {
+shdr *mod_get_sh(draw_src s, cam *c, mtl m, m4 t) {
   static shdr *cam = NULL;
   static shdr *shade = NULL;
   if (!cam) {
     cam = _new_(shdr_new(2,
-                         (shdr_spec[]){
+                         (shdr_s[]){
                             {GL_VERTEX_SHADER,   "res/mod.vsh"},
                             {GL_FRAGMENT_SHADER, "res/mod_light.fsh"},
                           }));
 
     shade = _new_(shdr_new(2,
-                           (shdr_spec[]){
+                           (shdr_s[]){
                               {GL_VERTEX_SHADER,   "res/mod_depth.vsh"},
                               {GL_FRAGMENT_SHADER, "res/mod_depth.fsh"},
                             }));
@@ -741,6 +737,7 @@ shdr *mod_get_sh(draw_src s, cam *c, mtl m, m4f t) {
   shdr_1f(cur, "u_trans", m.transmission);
   shdr_1f(cur, "u_shine", m.shine);
   shdr_1f(cur, "u_wind", m.wind);
+  shdr_1f(cur, "u_alpha", m.alpha);
   shdr_bind(cur);
 
   return cur;
@@ -814,8 +811,8 @@ void cam_rot(cam *c) {
   v3 up = v3_cross(right, front);
   c->up = up;
 
-  m4f look = cam_get_look(c);
-  m4f proj = cam_get_proj(c);
+  m4 look = cam_get_look(c);
+  m4 proj = cam_get_proj(c);
   c->vp = m4_mul(look, proj);
 
   float const overshoot_dist = 1.33f;
@@ -834,7 +831,7 @@ void cam_rot(cam *c) {
 }
 
 int *quad_indices(int w, int h) {
-  int *inds = arr_new(int, (w - 1) * (h - 1) * 6);
+  int *inds = arr_new_sized(int, (w - 1) * (h - 1) * 6);
 
   for (int i = 0; i < h - 1; i++)
     for (int j = 0; j < w - 1; j++) {
@@ -850,7 +847,7 @@ int *quad_indices(int w, int h) {
 }
 
 void imod_opti_vao(vao *v, buf *model, buf *id) {
-  gl_vertex_array_vertex_buffer(v->id, 1, model->id, 0, sizeof(m4f));
+  gl_vertex_array_vertex_buffer(v->id, 1, model->id, 0, sizeof(m4));
   for (int i = 0; i < 4; i++) {
     gl_enable_vertex_array_attrib(v->id, v->n_attrs + i);
     gl_vertex_array_attrib_format(v->id, v->n_attrs + i, 4, GL_FLOAT, GL_FALSE,
@@ -860,7 +857,7 @@ void imod_opti_vao(vao *v, buf *model, buf *id) {
 
   gl_vertex_array_binding_divisor(v->id, 1, 1);
 
-  gl_vertex_array_vertex_buffer(v->id, 2, model->id, 0, sizeof(m4f));
+  gl_vertex_array_vertex_buffer(v->id, 2, model->id, 0, sizeof(m4));
 
   gl_enable_vertex_array_attrib(v->id, v->n_attrs + 4);
   gl_vertex_array_attrib_i_format(v->id, v->n_attrs + 4, 1, GL_UNSIGNED_INT, 0);
@@ -873,7 +870,7 @@ static imod **all_imods = NULL;
 
 imod *imod_new(mod m) {
   if (!all_imods) {
-    all_imods = arr_new(imod *, 4);
+    all_imods = arr_new(imod *);
   }
 
   imod out = {
@@ -881,8 +878,8 @@ imod *imod_new(mod m) {
     .n_meshes = m.n_meshes,
     .n_texes = m.n_texes,
     .texes = m.texes,
-    .model = arr_new(m4f, 4),
-    .id = arr_new(int, 4),
+    .model = arr_new(m4),
+    .id = arr_new(int),
     .model_buf = buf_new(GL_ARRAY_BUFFER),
     .bounds = m.bounds
   };
@@ -907,29 +904,27 @@ void imod_draw(draw_src s, cam *c) {
     int count = arr_len(m->model);
     if (!count) continue;
 
-    buf_data_n(&m->model_buf, GL_DYNAMIC_DRAW, sizeof(m4f), count, m->model);
+    buf_data_n(&m->model_buf, GL_DYNAMIC_DRAW, sizeof(m4), count, m->model);
 
     for (int i = 0; i < m->n_meshes; i++) {
       imod_get_sh(s, c, m->meshes[i].mat);
       (m->meshes[i].mat.cull ? gl_enable : gl_disable)(GL_CULL_FACE);
-      gl_polygon_mode(GL_FRONT_AND_BACK, m->meshes[i].mat.line ? GL_LINE : GL_FILL);
 
       vao_bind(&m->meshes[i].vao);
       gl_draw_elements_instanced(GL_TRIANGLES, m->meshes[i].n_inds,
                                  GL_UNSIGNED_INT, 0, count);
 
-      the_app.n_tris += m->meshes[i].n_inds / 3 * count;
+      $.n_tris += m->meshes[i].n_inds / 3 * count;
     }
 
     arr_clear(m->model);
   }
 
   gl_disable(GL_CULL_FACE);
-  gl_polygon_mode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
-void imod_add(imod *m, m4f t, int id) {
-  m4f t_tpose = m4_tpose(&t);
+void imod_add(imod *m, m4 t, int id) {
+  m4 t_tpose = m4_tpose(t);
   arr_add(&m->model, &t_tpose);
   arr_add(&m->id, &id);
 }
@@ -938,12 +933,12 @@ shdr *imod_get_sh(draw_src s, cam *c, mtl m) {
   static shdr *cam = NULL;
   static shdr *shade = NULL;
   if (!cam) {
-    cam = _new_(shdr_new(2, (shdr_spec[]){
+    cam = _new_(shdr_new(2, (shdr_s[]){
       GL_VERTEX_SHADER, "res/imod.vsh",
       GL_FRAGMENT_SHADER, "res/mod_light.fsh"
     }));
 
-    shade = _new_(shdr_new(2, (shdr_spec[]){
+    shade = _new_(shdr_new(2, (shdr_s[]){
       GL_VERTEX_SHADER, "res/imod_depth.vsh",
       GL_FRAGMENT_SHADER, "res/mod_depth.fsh"
     }));
@@ -959,6 +954,7 @@ shdr *imod_get_sh(draw_src s, cam *c, mtl m) {
   shdr_1f(cur, "u_trans", m.transmission);
   shdr_1f(cur, "u_shine", m.shine);
   shdr_1f(cur, "u_wind", m.wind);
+  shdr_1f(cur, "u_alpha", m.alpha);
   shdr_1f(cur, "u_time", app_now() / 1000.f);
   shdr_bind(cur);
 

@@ -268,7 +268,7 @@ hit body_hit(body *a, body *b) {
     case bt_cap | bt_ball: return hit_bc(b, a);
     case bt_mesh | bt_ball: return hit_mb(a, b);
     case bt_mesh | bt_cap: return hit_mc(a, b);
-    case bt_mesh: throw_c("body_hit: two meshes may not collide!");
+    case bt_mesh: throwf("body_hit: two meshes may not collide!");
   }
 }
 
@@ -302,7 +302,7 @@ void body_tick(body *b, float t) {
 }
 
 tmesh tmesh_new(tri *tris) {
-  auto objs = arr_new(tri, arr_len(tris));
+  auto objs = arr_new_sized(tri, arr_len(tris));
 
   float large = 1e20f;
   v3 min = (v3){large, large, large}, max = (v3){-large, -large, -large};
@@ -355,9 +355,9 @@ box3 body_get_box(body *b) {
 
 tmesh tmesh_new_vi(obj_vtx *verts, int *inds) {
   size_t count = arr_len(inds);
-  if (count % 3 != 0) throw_c("tmesh_new_vi: inds passed not for triangles!");
+  if (count % 3 != 0) throwf("tmesh_new_vi: inds passed not for triangles!");
 
-  tri *mesh = arr_new(tri, count / 3);
+  tri *mesh = arr_new_sized(tri, count / 3);
   float const big = 1000000000.f;
   v3 min = {big, big, big}, max = {-big, -big, -big};
   for (int i = 0; i < count; i += 3) {
@@ -374,9 +374,9 @@ tmesh tmesh_new_vi(obj_vtx *verts, int *inds) {
 
 tmesh tmesh_new_cvi(ch_vtx *verts, int *inds) {
   size_t count = arr_len(inds);
-  if (count % 3 != 0) throw_c("tmesh_new_vi: inds passed not for triangles!");
+  if (count % 3 != 0) throwf("tmesh_new_vi: inds passed not for triangles!");
 
-  tri *mesh = arr_new(tri, count / 3);
+  tri *mesh = arr_new_sized(tri, count / 3);
   float const big = 1000000000.f;
   v3 min = {big, big, big}, max = {-big, -big, -big};
   for (int i = 0; i < count; i += 3) {
@@ -407,7 +407,7 @@ tmesh tmesh_add(tmesh *orig, v3 pos) {
   tmesh m = {
     .type = bt_mesh,
     .box = box3_new(v3_add(orig->box.min, pos), v3_add(orig->box.max, pos)),
-    .tris = arr_new(tri, 4)
+    .tris = arr_new(tri)
   };
 
   arr_copy(&m.tris, orig->tris);

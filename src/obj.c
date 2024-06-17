@@ -88,7 +88,7 @@ void hana_draw(obj *o, draw_src s, cam *c, float d) {
   v3 base = v3_sub(obj_get_ipos(o, d), v3_mul(cap.norm, cap.ext + cap.rad));
   mod_draw(lazy.hana, s, c, m4_mul(m4_trans(0, 0, 0.215f),
                                    m4_mul(m4_rot_y(
-                                            -rad(the_app.cam.yaw) + M_PIF / 2.f),
+                                            -rad($.cam.yaw) + M_PIF / 2.f),
                                           m4_trans_v(base))), o->id);
 }
 
@@ -135,7 +135,7 @@ void obj_draw(obj *o, draw_src s, cam *c, float d) {
 }
 
 void hana_tick(obj *o) {
-  app *a = &the_app;
+  app *a = &$;
   body *b = &o->body;
 
   float forwards = 0, sideways = 0;
@@ -273,5 +273,10 @@ box3 obj_get_box(obj *o) {
 }
 
 float obj_raycast(obj *e, v3 o, v3 d) {
-
+  switch (e->type) {
+    case ot_hana:
+    case ot_tree:
+    case ot_test:
+      
+  }
 }
